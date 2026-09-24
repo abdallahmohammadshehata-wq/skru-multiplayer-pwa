@@ -60,6 +60,7 @@ export class LocalGameSession {
   public logs: { ar: string; en: string }[] = [];
   public variant: GameVariant;
   public pointsCap: number;
+  public onStateChange?: () => void;
 
   constructor(playerConfigs: Array<{ name: string; avatar: string; isAi: boolean }>, variant: GameVariant = 'CLASSIC', pointsCap: number = 100) {
     this.variant = variant;
@@ -313,5 +314,6 @@ export class LocalGameSession {
   private addLog(ar: string, en: string) {
     this.logs.push({ ar, en });
     if (this.logs.length > 20) this.logs.shift();
+    if (this.onStateChange) this.onStateChange();
   }
 }

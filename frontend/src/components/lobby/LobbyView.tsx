@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Crown, Copy, Check, Shield, Sparkles, Clock, ArrowRight, Play, UserPlus, Flame } from 'lucide-react';
+import { Users, Crown, Copy, Check, Shield, Sparkles, Clock, ArrowRight, Play, UserPlus, Flame, Bot, Radio } from 'lucide-react';
 import { useTranslation } from '../../i18n/I18nContext';
 import { GameVariant } from '../../types';
 import { sound } from '../../utils/audio';
@@ -11,6 +11,9 @@ interface LobbyViewProps {
   onJoinRoom: (roomCode: string, name: string, avatar: string, passcode?: string, team?: 'A' | 'B') => void;
   onCreateRoom: (name: string, avatar: string, options: any) => void;
   onStartGame: () => void;
+  onAddBot?: () => void;
+  onLeaveRoom?: () => void;
+  isConnected?: boolean;
   myPlayerId: string;
 }
 
@@ -19,6 +22,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   onJoinRoom,
   onCreateRoom,
   onStartGame,
+  onAddBot,
+  onLeaveRoom,
+  isConnected = false,
   myPlayerId
 }) => {
   const { t, language } = useTranslation();
@@ -164,7 +170,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
 
           {/* Start Game Action Bar */}
-          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
+          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2.5">
+            {isHost && lobbyState.players.length < (lobbyState.options?.maxPlayers || 4) && (
+              <button
+                type="button"
+                onClick={() => { sound.playCardFlip(); onAddBot?.(); }}
+                className="py-3 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-extrabold text-xs border border-amber-500/30 flex items-center justify-center gap-2 transition-all active:scale-95 shadow"
+              >
+                <Bot size={16} />
+                <span>إضافة لاعب بوت ذكي (Add AI Bot) 🤖</span>
+              </button>
+            )}
+
             {isHost ? (
               <button
                 onClick={onStartGame}
@@ -174,12 +191,22 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 }`}
               >
                 <Play size={20} />
-                <span>{t('lobby.start_game')}</span>
+                <span>{t('lobby.start_game')} ({lobbyState.players.length} لاعبين)</span>
               </button>
             ) : (
               <div className="text-center py-3 text-sm font-bold text-amber-300 animate-pulse">
                 ⏳ {t('lobby.waiting_for_host')}
               </div>
+            )}
+
+            {onLeaveRoom && (
+              <button
+                type="button"
+                onClick={() => { sound.playCardSlide(); onLeaveRoom(); }}
+                className="py-1.5 text-xs text-slate-400 hover:text-red-400 font-bold transition-colors text-center"
+              >
+                مغادرة الغرفة والعودة
+              </button>
             )}
           </div>
         </div>
@@ -189,7 +216,21 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
   // Lobby Home Screen (Join / Create Tabs)
   return (
-    <div className="w-full max-w-xl mx-auto p-4 flex flex-col gap-5">
+    <div className="w-full max-w-xl mx-auto p-4 flex flex-col gap-4">
+      {/* Network Connection Indicator */}
+      <div className="glass-panel px-4 py-2.5 flex items-center justify-between border-white/10 shadow-md">
+        <div className="flex items-center gap-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+          <span className="text-xs font-black text-white flex items-center gap-1.5">
+            <Radio size={14} className={isConnected ? 'text-emerald-400' : 'text-amber-400'} />
+            <span>{isConnected ? 'سيرفر الأونلاين متصل (WebSocket Live)' : 'الغرفة الفورية الذكية (Smart PWA Host)'}</span>
+          </span>
+        </div>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+          جاهز للعب فوراً
+        </span>
+      </div>
+
       {/* Profile Card (Name & Avatar Picker) */}
       <div className="glass-panel p-5 sm:p-6 flex flex-col gap-4 border border-white/10 shadow-2xl">
         <span className="text-xs font-black text-amber-400 uppercase tracking-widest">

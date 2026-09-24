@@ -28,7 +28,9 @@ const MainApp: React.FC = () => {
     chatMessages,
     emojiReactions,
     send,
-    clearPeekReveal
+    clearPeekReveal,
+    leaveRoom,
+    addBotToLobby
   } = useSkruSocket();
 
   // Auto-fill room from URL query ?room=SKRU-XXX
@@ -103,7 +105,7 @@ const MainApp: React.FC = () => {
   };
 
   const handleLeaveRoom = () => {
-    window.location.href = window.location.pathname;
+    leaveRoom();
   };
 
   return (
@@ -143,6 +145,9 @@ const MainApp: React.FC = () => {
                 onJoinRoom={handleJoinRoom}
                 onCreateRoom={handleCreateRoom}
                 onStartGame={handleStartGame}
+                onAddBot={addBotToLobby}
+                onLeaveRoom={handleLeaveRoom}
+                isConnected={isConnected}
                 myPlayerId={myPlayerId}
               />
             )}
