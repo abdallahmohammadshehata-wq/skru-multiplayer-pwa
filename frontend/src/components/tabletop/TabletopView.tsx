@@ -122,7 +122,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
     sound.playCardFlip();
     triggerHaptic('light');
 
-    if (isActionPending && gameState.pendingActionSummary?.type === 'PEEK_OWN') {
+    if (isActionPending && (gameState.pendingActionSummary?.type === 'PEEK_OWN' || gameState.pendingActionSummary?.type === 'PEEK_ALL')) {
       onExecuteAction({ ownCardIndex: idx });
       return;
     }
@@ -245,6 +245,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                   {gameState.pendingActionSummary?.type === 'PEEK_OTHER' && t('game.action_peek_other_guide')}
                   {gameState.pendingActionSummary?.type === 'SWAP' && (selectedOwnCardIdx === null ? t('game.action_swap_guide_1') : t('game.action_swap_guide_2'))}
                   {gameState.pendingActionSummary?.type === 'PEEK_AND_SWAP' && t('game.action_peek_swap_guide')}
+                  {gameState.pendingActionSummary?.type === 'PEEK_ALL' && (language === 'ar' ? '✨ كعب داير: اضغط على أي كارت من يدك لكشف كروت الطاولة!' : '✨ Peek All: Tap a hand card to reveal table cards!')}
                   {gameState.pendingActionSummary?.type === 'FREEZE' && (language === 'ar' ? '❄️ اضغط على أي خصم لتجميده!' : '❄️ Tap an opponent to freeze!')}
                   {gameState.pendingActionSummary?.type === 'BOMB' && (language === 'ar' ? '💣 اضغط على أي خصم لرمي القنبلة عليه!' : '💣 Tap an opponent to bomb!')}
                 </span>
@@ -458,7 +459,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             }}
             className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn"
           >
-            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl relative">
+            <div className={`glass-panel p-5 ${peekReveal.peekData?.allRevealedCards ? 'max-w-lg' : 'max-w-sm'} w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl relative`}>
               <button
                 onClick={() => onClearPeekReveal?.()}
                 className="absolute top-3 left-3 sm:left-auto sm:right-3 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all"
@@ -469,9 +470,44 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
 
               <h3 className="font-black text-lg text-purple-300 flex items-center gap-2">
                 <Eye size={22} />
-                <span>{language === 'ar' ? 'كشف الكارت السري' : 'Secret Card Revealed'}</span>
+                <span>
+                  {peekReveal.peekData?.allRevealedCards 
+                    ? (language === 'ar' ? 'كعب داير (كروت جميع اللاعبين)' : 'Peek All (Table Cards)') 
+                    : (language === 'ar' ? 'كشف الكارت السري' : 'Secret Card Revealed')}
+                </span>
               </h3>
-              {peekReveal.peekData?.card && (
+
+              {peekReveal.peekData?.allRevealedCards ? (
+                <div className="flex flex-col gap-3 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-[55vh] overflow-y-auto p-1">
+                    {peekReveal.peekData.allRevealedCards.map((item: any, i: number) => (
+                      <div key={i} className="flex flex-col items-center gap-1 p-2 rounded-xl bg-black/45 border border-white/15 shadow">
+                        <div className="flex items-center gap-1 text-[11px] font-black text-amber-300">
+                          <span>{item.avatar || '👤'}</span>
+                          <span className="truncate max-w-[80px]">{item.isOwn ? (language === 'ar' ? 'كارتك' : 'Your Card') : item.playerName}</span>
+                        </div>
+                        <CardView
+                          id={item.card.id}
+                          value={item.card.value}
+                          action={item.card.action}
+                          labelAr={item.card.labelAr}
+                          labelEn={item.card.labelEn}
+                          color={item.card.color}
+                          isFaceUp={true}
+                          canInteract={false}
+                          lang={language}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => onClearPeekReveal?.()}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>{language === 'ar' ? 'فهمت كروت الطاولة (إغلاق) ✓' : 'Got Table Cards (Close) ✓'}</span>
+                  </button>
+                </div>
+              ) : peekReveal.peekData?.card ? (
                 <CardView
                   id={peekReveal.peekData.card.id}
                   value={peekReveal.peekData.card.value}
@@ -483,57 +519,60 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                   canInteract={false}
                   lang={language}
                 />
-              )}
-              {peekReveal.peekData?.requireSwapChoice ? (
-                <div className="flex flex-col gap-2 w-full mt-2">
-                  <span className="text-xs font-bold text-amber-200">
-                    {selectedOwnCardIdx !== null 
-                      ? (language === 'ar' ? `كارتك المحدد: #${selectedOwnCardIdx + 1}` : `Selected Card: #${selectedOwnCardIdx + 1}`) 
-                      : (language === 'ar' ? 'اختر كارت من يدك بالأسفل لتبديله معه:' : 'Select one of your hand cards below to swap:')}
-                  </span>
-                  <div className="flex gap-2 w-full mt-1">
-                    <button
-                      onClick={() => {
-                        if (selectedOwnCardIdx !== null) {
-                          onExecuteAction({
-                            chooseSwap: true,
-                            ownCardIndex: selectedOwnCardIdx,
-                            targetPlayerId: selectedTargetPlayerId,
-                            targetCardIndex: selectedTargetCardIdx
-                          });
+              ) : null}
+
+              {!peekReveal.peekData?.allRevealedCards && (
+                peekReveal.peekData?.requireSwapChoice ? (
+                  <div className="flex flex-col gap-2 w-full mt-2">
+                    <span className="text-xs font-bold text-amber-200">
+                      {selectedOwnCardIdx !== null 
+                        ? (language === 'ar' ? `كارتك المحدد: #${selectedOwnCardIdx + 1}` : `Selected Card: #${selectedOwnCardIdx + 1}`) 
+                        : (language === 'ar' ? 'اختر كارت من يدك بالأسفل لتبديله معه:' : 'Select one of your hand cards below to swap:')}
+                    </span>
+                    <div className="flex gap-2 w-full mt-1">
+                      <button
+                        onClick={() => {
+                          if (selectedOwnCardIdx !== null) {
+                            onExecuteAction({
+                              chooseSwap: true,
+                              ownCardIndex: selectedOwnCardIdx,
+                              targetPlayerId: selectedTargetPlayerId,
+                              targetCardIndex: selectedTargetCardIdx
+                            });
+                            onClearPeekReveal?.();
+                            setSelectedOwnCardIdx(null);
+                          }
+                        }}
+                        disabled={selectedOwnCardIdx === null}
+                        className="flex-1 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
+                      >
+                        {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          onExecuteAction({ chooseSwap: false, skip: true });
                           onClearPeekReveal?.();
                           setSelectedOwnCardIdx(null);
-                        }
-                      }}
-                      disabled={selectedOwnCardIdx === null}
-                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
-                    >
-                      {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        onExecuteAction({ chooseSwap: false, skip: true });
-                        onClearPeekReveal?.();
-                        setSelectedOwnCardIdx(null);
-                      }}
-                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
-                    >
-                      {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
-                    </button>
+                        }}
+                        className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
+                      >
+                        {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 w-full mt-1">
-                  <button
-                    onClick={() => onClearPeekReveal?.()}
-                    className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <span>{language === 'ar' ? 'فهمت الكارت (إغلاق) ✓' : 'Got it (Close) ✓'}</span>
-                  </button>
-                  <span className="text-[10px] sm:text-[11px] text-slate-400">
-                    {language === 'ar' ? 'سيتم إخفاء الكارت تلقائياً أيضاً خلال ثوانٍ' : 'Card will also auto-hide in a few seconds'}
-                  </span>
-                </div>
+                ) : (
+                  <div className="flex flex-col gap-2 w-full mt-1">
+                    <button
+                      onClick={() => onClearPeekReveal?.()}
+                      className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>{language === 'ar' ? 'فهمت الكارت (إغلاق) ✓' : 'Got it (Close) ✓'}</span>
+                    </button>
+                    <span className="text-[10px] sm:text-[11px] text-slate-400">
+                      {language === 'ar' ? 'سيتم إخفاء الكارت تلقائياً أيضاً خلال ثوانٍ' : 'Card will also auto-hide in a few seconds'}
+                    </span>
+                  </div>
+                )
               )}
             </div>
           </div>

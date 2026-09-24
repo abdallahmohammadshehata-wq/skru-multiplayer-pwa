@@ -254,7 +254,7 @@ export class LocalGameSession {
     chooseSwap?: boolean;
     myCardIndex?: number;
     skip?: boolean;
-  }): { success: boolean; revealedCard?: Card; message?: string } {
+  }): { success: boolean; revealedCard?: Card; allRevealedCards?: Array<{ playerName: string; avatar?: string; card: Card; isOwn: boolean }>; message?: string } {
     if (!this.pendingAction) return { success: false, message: 'No pending action' };
 
     if (payload.skip) {
@@ -385,6 +385,37 @@ export class LocalGameSession {
           return { success: true };
         }
         break;
+      }
+
+      case 'PEEK_ALL': {
+        const allRevealedCards: Array<{ playerName: string; avatar?: string; card: Card; isOwn: boolean }> = [];
+        const ownIdx = payload.ownCardIndex ?? 0;
+        if (player.hand[ownIdx]) {
+          player.knownCards[ownIdx] = player.hand[ownIdx].value;
+          allRevealedCards.push({
+            playerName: player.name,
+            avatar: player.avatar,
+            card: player.hand[ownIdx],
+            isOwn: true
+          });
+        }
+
+        this.players.forEach((opp, idx) => {
+          if (idx !== this.pendingAction!.playerIndex && opp.hand.length > 0) {
+            const oppCardIdx = Math.floor(Math.random() * opp.hand.length);
+            allRevealedCards.push({
+              playerName: opp.name,
+              avatar: opp.avatar,
+              card: opp.hand[oppCardIdx],
+              isOwn: false
+            });
+          }
+        });
+
+        this.addLog(`استخدم ${player.name} كارت (كعب داير) وكشف كروت الطاولة!`, `${player.name} used Peek All (Ka'ab Dayer)!`);
+        this.pendingAction = null;
+        this.advanceTurn();
+        return { success: true, allRevealedCards };
       }
 
       default:

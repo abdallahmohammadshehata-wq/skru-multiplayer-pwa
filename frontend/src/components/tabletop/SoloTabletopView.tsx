@@ -24,7 +24,12 @@ export const SoloTabletopView: React.FC = () => {
   const [opponentBotCount, setOpponentBotCount] = useState<number>(2);
   const [initialPeekTimer, setInitialPeekTimer] = useState<number>(6);
   const [turnSecondsRemaining, setTurnSecondsRemaining] = useState<number>(20);
-  const [ephemeralPeek, setEphemeralPeek] = useState<{ card: Card; title: string; requireSwapChoice?: boolean } | null>(null);
+  const [ephemeralPeek, setEphemeralPeek] = useState<{
+    card?: Card;
+    allRevealedCards?: Array<{ playerName: string; avatar?: string; card: Card; isOwn: boolean }>;
+    title: string;
+    requireSwapChoice?: boolean;
+  } | null>(null);
   const [slapToast, setSlapToast] = useState<{ isMatch: boolean; messageAr: string; messageEn: string } | null>(null);
 
   const forceUpdate = () => setTick(prev => prev + 1);
@@ -130,10 +135,16 @@ export const SoloTabletopView: React.FC = () => {
     sound.playCardFlip();
     triggerHaptic('light');
 
-    // 1. If executing special action PEEK_OWN (7/8)
-    if (isPendingAction && session.pendingAction?.type === 'PEEK_OWN') {
+    // 1. If executing special action PEEK_OWN (7/8) or PEEK_ALL (كعب داير)
+    if (isPendingAction && (session.pendingAction?.type === 'PEEK_OWN' || session.pendingAction?.type === 'PEEK_ALL')) {
       const res = session.executeAction({ ownCardIndex: idx });
-      if (res.revealedCard) {
+      if (res.allRevealedCards) {
+        setEphemeralPeek({
+          allRevealedCards: res.allRevealedCards,
+          title: language === 'ar' ? 'كعب داير (كروت جميع اللاعبين)' : 'Peek All (Table Cards)'
+        });
+        setTimeout(() => setEphemeralPeek(null), 7000);
+      } else if (res.revealedCard) {
         setEphemeralPeek({
           card: res.revealedCard,
           title: language === 'ar' ? `كارتك رقم #${idx + 1}` : `Your Hand Card #${idx + 1}`
@@ -511,7 +522,7 @@ export const SoloTabletopView: React.FC = () => {
             }}
             className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn"
           >
-            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl relative">
+            <div className={`glass-panel p-5 ${ephemeralPeek.allRevealedCards ? 'max-w-lg' : 'max-w-sm'} w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl relative`}>
               <button
                 onClick={() => {
                   setEphemeralPeek(null);
@@ -528,72 +539,112 @@ export const SoloTabletopView: React.FC = () => {
                 <Eye size={20} />
                 <span>{ephemeralPeek.title}</span>
               </h3>
-              <CardView
-                id={ephemeralPeek.card.id}
-                value={ephemeralPeek.card.value}
-                action={ephemeralPeek.card.action}
-                labelAr={ephemeralPeek.card.labelAr}
-                labelEn={ephemeralPeek.card.labelEn}
-                color={ephemeralPeek.card.color as any}
-                isFaceUp={true}
-                canInteract={false}
-                lang={language}
-              />
-              {ephemeralPeek.requireSwapChoice ? (
-                <div className="flex flex-col gap-2 w-full mt-2">
-                  <span className="text-xs font-bold text-amber-200">
-                    {selectedOwnCardIdx !== null 
-                      ? (language === 'ar' ? `كارتك المحدد: #${selectedOwnCardIdx + 1}` : `Selected Hand Card: #${selectedOwnCardIdx + 1}`)
-                      : (language === 'ar' ? 'اختر كارت من يدك بالأسفل لتبديله معه:' : 'Select a hand card below to swap:')}
-                  </span>
-                  <div className="flex gap-2 w-full mt-1">
-                    <button
-                      onClick={() => {
-                        if (selectedOwnCardIdx !== null) {
-                          session.executeAction({
-                            chooseSwap: true,
-                            myCardIndex: selectedOwnCardIdx,
-                            targetPlayerIndex: session.pendingAction?.targetPlayerIndex
-                          });
-                          setEphemeralPeek(null);
-                          setSelectedOwnCardIdx(null);
-                          forceUpdate();
-                        }
-                      }}
-                      disabled={selectedOwnCardIdx === null}
-                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
-                    >
-                      {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        session.executeAction({ chooseSwap: false });
-                        setEphemeralPeek(null);
-                        setSelectedOwnCardIdx(null);
-                        forceUpdate();
-                      }}
-                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
-                    >
-                      {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
-                    </button>
+
+              {ephemeralPeek.allRevealedCards ? (
+                <div className="flex flex-col gap-3 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-[55vh] overflow-y-auto p-1">
+                    {ephemeralPeek.allRevealedCards.map((item, i) => (
+                      <div key={i} className="flex flex-col items-center gap-1 p-2 rounded-xl bg-black/45 border border-white/15 shadow">
+                        <div className="flex items-center gap-1 text-[11px] font-black text-amber-300">
+                          <span>{item.avatar || '👤'}</span>
+                          <span className="truncate max-w-[80px]">{item.isOwn ? (language === 'ar' ? 'كارتك' : 'Your Card') : item.playerName}</span>
+                        </div>
+                        <CardView
+                          id={item.card.id}
+                          value={item.card.value}
+                          action={item.card.action}
+                          labelAr={item.card.labelAr}
+                          labelEn={item.card.labelEn}
+                          color={item.card.color as any}
+                          isFaceUp={true}
+                          canInteract={false}
+                          lang={language}
+                        />
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 w-full mt-1">
                   <button
                     onClick={() => {
                       setEphemeralPeek(null);
                       setSelectedOwnCardIdx(null);
                       forceUpdate();
                     }}
-                    className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
-                    <span>{language === 'ar' ? 'فهمت الكارت (إغلاق) ✓' : 'Got it (Close) ✓'}</span>
+                    <span>{language === 'ar' ? 'فهمت كروت الطاولة (إغلاق) ✓' : 'Got Table Cards (Close) ✓'}</span>
                   </button>
-                  <span className="text-[10px] sm:text-[11px] text-slate-400">
-                    {language === 'ar' ? 'سيتم إخفاء الكارت تلقائياً أيضاً خلال ثوانٍ' : 'Card will also auto-hide in a few seconds'}
-                  </span>
                 </div>
+              ) : ephemeralPeek.card ? (
+                <CardView
+                  id={ephemeralPeek.card.id}
+                  value={ephemeralPeek.card.value}
+                  action={ephemeralPeek.card.action}
+                  labelAr={ephemeralPeek.card.labelAr}
+                  labelEn={ephemeralPeek.card.labelEn}
+                  color={ephemeralPeek.card.color as any}
+                  isFaceUp={true}
+                  canInteract={false}
+                  lang={language}
+                />
+              ) : null}
+
+              {!ephemeralPeek.allRevealedCards && (
+                ephemeralPeek.requireSwapChoice ? (
+                  <div className="flex flex-col gap-2 w-full mt-2">
+                    <span className="text-xs font-bold text-amber-200">
+                      {selectedOwnCardIdx !== null 
+                        ? (language === 'ar' ? `كارتك المحدد: #${selectedOwnCardIdx + 1}` : `Selected Hand Card: #${selectedOwnCardIdx + 1}`)
+                        : (language === 'ar' ? 'اختر كارت من يدك بالأسفل لتبديله معه:' : 'Select a hand card below to swap:')}
+                    </span>
+                    <div className="flex gap-2 w-full mt-1">
+                      <button
+                        onClick={() => {
+                          if (selectedOwnCardIdx !== null) {
+                            session.executeAction({
+                              chooseSwap: true,
+                              myCardIndex: selectedOwnCardIdx,
+                              targetPlayerIndex: session.pendingAction?.targetPlayerIndex
+                            });
+                            setEphemeralPeek(null);
+                            setSelectedOwnCardIdx(null);
+                            forceUpdate();
+                          }
+                        }}
+                        disabled={selectedOwnCardIdx === null}
+                        className="flex-1 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
+                      >
+                        {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          session.executeAction({ chooseSwap: false });
+                          setEphemeralPeek(null);
+                          setSelectedOwnCardIdx(null);
+                          forceUpdate();
+                        }}
+                        className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
+                      >
+                        {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 w-full mt-1">
+                    <button
+                      onClick={() => {
+                        setEphemeralPeek(null);
+                        setSelectedOwnCardIdx(null);
+                        forceUpdate();
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>{language === 'ar' ? 'فهمت الكارت (إغلاق) ✓' : 'Got it (Close) ✓'}</span>
+                    </button>
+                    <span className="text-[10px] sm:text-[11px] text-slate-400">
+                      {language === 'ar' ? 'سيتم إخفاء الكارت تلقائياً أيضاً خلال ثوانٍ' : 'Card will also auto-hide in a few seconds'}
+                    </span>
+                  </div>
+                )
               )}
             </div>
           </div>

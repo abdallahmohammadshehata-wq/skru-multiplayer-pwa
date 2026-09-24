@@ -550,7 +550,13 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
           skip: payload?.skip
         });
 
-        if (result.revealedCard) {
+        if (result.allRevealedCards) {
+          setPeekReveal({
+            peekData: { allRevealedCards: result.allRevealedCards, title: 'كعب داير (كروت الطاولة)' },
+            durationMs: 7000
+          });
+          setTimeout(() => setPeekReveal(null), 7000);
+        } else if (result.revealedCard) {
           const isSwapChoice = session.pendingAction?.stage === 'CHOOSE_SWAP';
           const dur = isSwapChoice ? 10000 : 4000;
           setPeekReveal({
