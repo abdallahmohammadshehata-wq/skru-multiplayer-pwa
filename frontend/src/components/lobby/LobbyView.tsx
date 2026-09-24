@@ -333,24 +333,37 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2 pt-1 border-t border-red-500/20">
-            <button
-              type="button"
-              onClick={() => handleJoin()}
-              className="py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/30 flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <span>🔄</span>
-              <span>{language === 'ar' ? 'إعادة المحاولة' : 'Try Again'}</span>
-            </button>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-red-500/20">
             <button
               type="button"
               onClick={() => {
-                setActiveTab('CREATE');
-                onClearJoinError?.();
+                saveProfile();
+                sound.playCardFlip();
+                onCreateRoom(name.trim() || 'Player', avatar, {
+                  variant: 'CLASSIC',
+                  pointsCap: 100,
+                  turnTimer: 20,
+                  maxPlayers: 4,
+                  roomCode: roomCodeInput
+                });
               }}
-              className="py-1.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+              className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-black font-black text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition-all"
             >
-              <span>{language === 'ar' ? 'إنشاء غرفة جديدة' : 'Create New Room'}</span>
+              <Crown size={14} />
+              <span>
+                {language === 'ar' 
+                  ? `إنشاء الغرفة بالرمز (${roomCodeInput || 'الجديد'}) واستضافة أصدقائك 👑` 
+                  : `Create Room (${roomCodeInput || 'New'}) as Host 👑`}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleJoin()}
+              className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+            >
+              <span>🔄</span>
+              <span>{language === 'ar' ? 'إعادة المحاولة' : 'Try Again'}</span>
             </button>
           </div>
         </div>
@@ -487,6 +500,20 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <span>{t('lobby.enter_room')}</span>
             <ArrowRight size={18} />
           </button>
+
+          <div className="pt-2 border-t border-white/10 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playCardSlide();
+                setActiveTab('CREATE');
+              }}
+              className="text-xs font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-white/5 transition-all"
+            >
+              <Sparkles size={14} className="text-amber-400" />
+              <span>{language === 'ar' ? 'أو أنشئ غرفتك الخاصة الآن وادعُ أصدقاءك' : 'Or Create Your Own Room & Invite Friends'}</span>
+            </button>
+          </div>
         </form>
       )}
 
