@@ -1,12 +1,16 @@
 /**
- * NetworkEngine – Zero-config multiplayer rooms via public WSS MQTT brokers.
+ * NetworkEngine – High-Availability Dual-Transport Multiplayer Rooms.
  *
- * Provides high-availability serverless multi-device room synchronization
- * with local pre-bundled mqtt vendor script, multi-broker automatic failover,
- * automatic resubscription on reconnect, and persistent heartbeat presence.
+ * Combines Public WSS MQTT pub/sub brokers and PeerJS WebRTC DataChannels
+ * into a single unified hybrid network engine. If an ISP or mobile firewall
+ * blocks MQTT WebSocket ports (8084), PeerJS WebRTC over HTTPS/STUN (443)
+ * automatically connects the players without any failure.
  */
 
+import { Peer, DataConnection } from 'peerjs';
+
 export interface NetworkMessage {
+  id?: string;
   event: string;
   payload: any;
   senderId?: string;
@@ -48,7 +52,6 @@ export function loadMqtt(): Promise<any> {
     function tryLoadNext() {
       if (typeof window !== 'undefined' && (window as any).mqtt) {
         _mqttLib = (window as any).mqtt;
-        console.log('[NetworkEngine] ✅ mqtt.js loaded');
         resolve(_mqttLib);
         return;
       }
@@ -66,7 +69,6 @@ export function loadMqtt(): Promise<any> {
       script.onload = () => {
         if ((window as any).mqtt) {
           _mqttLib = (window as any).mqtt;
-          console.log(`[NetworkEngine] ✅ mqtt.js loaded from ${src}`);
           resolve(_mqttLib);
         } else {
           tryLoadNext();
@@ -74,7 +76,6 @@ export function loadMqtt(): Promise<any> {
       };
 
       script.onerror = () => {
-        console.warn(`[NetworkEngine] Source ${src} failed, trying next...`);
         tryLoadNext();
       };
 
@@ -87,16 +88,15 @@ export function loadMqtt(): Promise<any> {
   return _mqttLoading;
 }
 
-// ---------- Multi-broker public servers ----------
+// ---------- Public MQTT Brokers ----------
 
 const BROKER_SERVERS = [
   'wss://broker.emqx.io:8084/mqtt',
   'wss://broker.hivemq.com:8884/mqtt',
-  'wss://test.mosquitto.org:8081',
-  'wss://public.mqtthq.com:8084/mqtt'
+  'wss://test.mosquitto.org:8081'
 ];
 
-// ---------- Debug status ----------
+// ---------- Debug Status ----------
 
 export type ConnectionStatus =
   | 'IDLE'
@@ -113,15 +113,20 @@ export interface DebugInfo {
   broker: string;
   topic: string;
   clientId: string;
+  transport: 'MQTT' | 'WEBRTC' | 'HYBRID' | 'NONE';
   error?: string;
   messagesSent: number;
   messagesReceived: number;
 }
 
-// ---------- NetworkEngine Implementation ----------
+// ---------- NetworkEngine Class ----------
 
 export class NetworkEngine {
-  private client: any = null;
+  private mqttClient: any = null;
+  private peer: Peer | null = null;
+  private peerConnections: Map<string, DataConnection> = new Map();
+  private hostPeerConnection: DataConnection | null = null;
+
   public isHost: boolean = false;
   public roomCode: string = '';
   public clientId: string = '';
@@ -130,9 +135,12 @@ export class NetworkEngine {
   private messageHandlers: Set<NetworkMessageHandler> = new Set();
   private heartbeatTimer: any = null;
   private joinRetryTimer: any = null;
+  private processedMessageIds: Set<string> = new Set();
+
   private _debugStatus: ConnectionStatus = 'IDLE';
   private _debugBroker: string = '';
   private _debugError: string = '';
+  private _activeTransport: 'MQTT' | 'WEBRTC' | 'HYBRID' | 'NONE' = 'NONE';
   private _msgSent: number = 0;
   private _msgRecv: number = 0;
   private _statusListeners: Set<() => void> = new Set();
@@ -146,10 +154,16 @@ export class NetworkEngine {
     return () => this._statusListeners.delete(fn);
   }
 
-  private setDebugStatus(status: ConnectionStatus, broker?: string, error?: string) {
+  private setDebugStatus(
+    status: ConnectionStatus,
+    broker?: string,
+    error?: string,
+    transport?: 'MQTT' | 'WEBRTC' | 'HYBRID' | 'NONE'
+  ) {
     this._debugStatus = status;
     if (broker !== undefined) this._debugBroker = broker;
     if (error !== undefined) this._debugError = error;
+    if (transport !== undefined) this._activeTransport = transport;
     for (const fn of this._statusListeners) {
       try { fn(); } catch (_) {}
     }
@@ -161,6 +175,7 @@ export class NetworkEngine {
       broker: this._debugBroker,
       topic: this.currentTopic,
       clientId: this.clientId,
+      transport: this._activeTransport,
       error: this._debugError,
       messagesSent: this._msgSent,
       messagesReceived: this._msgRecv,
@@ -173,6 +188,15 @@ export class NetworkEngine {
   }
 
   private dispatch(msg: NetworkMessage) {
+    // Deduplication check
+    const msgKey = msg.id || `${msg.timestamp || 0}_${msg.senderId || ''}_${msg.event}`;
+    if (this.processedMessageIds.has(msgKey)) return;
+    this.processedMessageIds.add(msgKey);
+    if (this.processedMessageIds.size > 200) {
+      const first = this.processedMessageIds.values().next().value;
+      if (first) this.processedMessageIds.delete(first);
+    }
+
     this._msgRecv++;
     for (const h of this.messageHandlers) {
       try {
@@ -189,74 +213,65 @@ export class NetworkEngine {
     return `skru/egypt_v3/${clean}`;
   }
 
-  /**
-   * Connect to an MQTT broker with automatic failover.
-   */
-  private async connectBroker(brokerIndex: number = 0): Promise<any> {
-    this.setDebugStatus('LOADING_LIB');
+  // ---------- MQTT Connection Flow ----------
+
+  private async connectMqtt(brokerIndex: number = 0): Promise<any> {
     let mqttLib: any;
     try {
       mqttLib = await loadMqtt();
     } catch (e: any) {
-      this.setDebugStatus('ERROR', '', `Library load failed: ${e.message}`);
-      throw e;
+      console.warn('[NetworkEngine] MQTT lib load failed:', e);
+      return null;
     }
 
-    return new Promise((resolve, reject) => {
-      if (this.client && this.client.connected) {
-        this.setDebugStatus('READY');
-        resolve(this.client);
+    return new Promise((resolve) => {
+      if (this.mqttClient && this.mqttClient.connected) {
+        resolve(this.mqttClient);
         return;
       }
 
       const brokerUrl = BROKER_SERVERS[brokerIndex % BROKER_SERVERS.length];
-      this.setDebugStatus('CONNECTING', brokerUrl);
-      console.log(`[NetworkEngine] Connecting to ${brokerUrl} (clientId: ${this.clientId})`);
+      console.log(`[NetworkEngine] Connecting MQTT to ${brokerUrl}`);
 
       try {
         const client = mqttLib.connect(brokerUrl, {
           clientId: this.clientId,
           clean: true,
-          connectTimeout: 5000,
-          reconnectPeriod: 2500,
+          connectTimeout: 4500,
+          reconnectPeriod: 3000,
           keepalive: 30
         });
 
-        let isResolved = false;
+        let isDone = false;
 
         const timeout = setTimeout(() => {
-          if (!client.connected && !isResolved) {
-            console.warn(`[NetworkEngine] Broker ${brokerUrl} timed out.`);
+          if (!client.connected && !isDone) {
+            isDone = true;
             try { client.end(true); } catch (_) {}
             if (brokerIndex + 1 < BROKER_SERVERS.length) {
-              this.connectBroker(brokerIndex + 1).then(resolve).catch(reject);
+              this.connectMqtt(brokerIndex + 1).then(resolve);
             } else {
-              this.setDebugStatus('ERROR', brokerUrl, 'All brokers unreachable');
-              reject(new Error('All MQTT brokers unreachable'));
+              resolve(null);
             }
           }
-        }, 5500);
+        }, 5000);
 
         client.on('connect', () => {
           clearTimeout(timeout);
-          isResolved = true;
+          isDone = true;
           this.isConnected = true;
-          this.client = client;
+          this.mqttClient = client;
+          this._activeTransport = this.peer ? 'HYBRID' : 'MQTT';
           this.setDebugStatus('CONNECTED', brokerUrl);
-          console.log(`[NetworkEngine] ✅ Connected to ${brokerUrl}`);
+          console.log(`[NetworkEngine] ✅ Connected to MQTT: ${brokerUrl}`);
 
-          // Critical: Always re-subscribe on connect / reconnect
           if (this.currentTopic) {
             client.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
-              if (err) {
-                console.error('[NetworkEngine] Subscribe error on connect:', err);
-              } else {
-                console.log(`[NetworkEngine] ✅ Subscribed to: ${this.currentTopic}`);
+              if (!err) {
                 this.setDebugStatus('READY');
               }
             });
           }
-
           resolve(client);
         });
 
@@ -273,37 +288,152 @@ export class NetworkEngine {
               return;
             }
             const data: NetworkMessage = JSON.parse(str);
-            if (data.senderId === this.clientId) return; // ignore own messages
-            console.log(`[NetworkEngine] 📨 Received: ${data.event}`, data.payload?.roomCode || '');
+            if (data.senderId === this.clientId) return;
             this.dispatch(data);
           } catch (e) {
-            console.error('[NetworkEngine] Error parsing message:', e);
+            console.error('[NetworkEngine] Error parsing MQTT msg:', e);
           }
         });
 
         client.on('error', (err: any) => {
-          console.warn('[NetworkEngine] Client error:', err?.message || err);
-          this.setDebugStatus('ERROR', brokerUrl, err?.message);
+          console.warn('[NetworkEngine] MQTT client error:', err?.message || err);
         });
 
         client.on('close', () => {
-          this.isConnected = false;
-          this.setDebugStatus('DISCONNECTED', brokerUrl);
+          if (!this.peerConnections.size && !this.hostPeerConnection) {
+            this.isConnected = false;
+            this.setDebugStatus('DISCONNECTED', brokerUrl);
+          }
         });
 
         client.on('reconnect', () => {
           this.setDebugStatus('CONNECTING', brokerUrl);
         });
 
-      } catch (err: any) {
-        this.setDebugStatus('ERROR', '', err?.message);
-        reject(err);
+      } catch (err) {
+        resolve(null);
       }
     });
   }
 
+  // ---------- WebRTC PeerJS Connection Flow ----------
+
+  private initHostPeer(roomCode: string): Promise<Peer | null> {
+    return new Promise((resolve) => {
+      try {
+        const peerRoomId = `skru_pwa_${normalizeRoomCode(roomCode)}`;
+        const p = new Peer(peerRoomId, {
+          debug: 1,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+          }
+        });
+
+        this.peer = p;
+
+        p.on('open', () => {
+          console.log(`[NetworkEngine WebRTC Host] ✅ Peer open with ID: ${peerRoomId}`);
+          this.isConnected = true;
+          this._activeTransport = this.mqttClient?.connected ? 'HYBRID' : 'WEBRTC';
+          this.setDebugStatus('READY');
+          resolve(p);
+        });
+
+        p.on('connection', (conn) => {
+          this.setupPeerHostConnection(conn);
+        });
+
+        p.on('error', (err: any) => {
+          console.warn('[NetworkEngine WebRTC Host Warning]', err?.type || err);
+          resolve(p);
+        });
+
+        setTimeout(() => resolve(p), 4000);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  private setupPeerHostConnection(conn: DataConnection) {
+    conn.on('open', () => {
+      this.peerConnections.set(conn.peer, conn);
+      this._activeTransport = 'HYBRID';
+      console.log(`[NetworkEngine WebRTC Host] ✅ Peer connected: ${conn.peer}`);
+    });
+
+    conn.on('data', (data: any) => {
+      if (typeof data === 'object' && data !== null && data.event) {
+        if (data.senderId === this.clientId) return;
+        this.dispatch(data);
+      }
+    });
+
+    conn.on('close', () => {
+      this.peerConnections.delete(conn.peer);
+    });
+  }
+
+  private connectClientPeer(roomCode: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        const targetPeerId = `skru_pwa_${normalizeRoomCode(roomCode)}`;
+        const p = new Peer({
+          debug: 1,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+          }
+        });
+
+        this.peer = p;
+
+        p.on('open', () => {
+          const conn = p.connect(targetPeerId, { reliable: true });
+          this.hostPeerConnection = conn;
+
+          conn.on('open', () => {
+            this.isConnected = true;
+            this._activeTransport = this.mqttClient?.connected ? 'HYBRID' : 'WEBRTC';
+            this.setDebugStatus('READY');
+            console.log(`[NetworkEngine WebRTC Client] ✅ Direct WebRTC connection open to host`);
+            resolve(true);
+          });
+
+          conn.on('data', (data: any) => {
+            if (typeof data === 'object' && data !== null && data.event) {
+              if (data.senderId === this.clientId) return;
+              this.dispatch(data);
+            }
+          });
+
+          conn.on('close', () => {
+            this.hostPeerConnection = null;
+          });
+
+          setTimeout(() => resolve(false), 4000);
+        });
+
+        p.on('error', () => {
+          resolve(false);
+        });
+
+        setTimeout(() => resolve(false), 5000);
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  // ---------- Public Room Lifecycle ----------
+
   /**
-   * Host creates a room.
+   * Host creates a room with Dual Hybrid Transport (MQTT + WebRTC).
    */
   public async hostRoom(roomCode: string): Promise<string> {
     this.destroy();
@@ -311,42 +441,36 @@ export class NetworkEngine {
     this.roomCode = normalizeRoomCode(roomCode);
     this.currentTopic = this.getTopic(this.roomCode);
 
-    try {
-      const client = await this.connectBroker(0);
+    this.setDebugStatus('CONNECTING');
 
-      await new Promise<void>((resolve, reject) => {
-        this.setDebugStatus('SUBSCRIBING');
-        client.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
-          if (err) {
-            console.error('[NetworkEngine Host] Subscribe error:', err);
-            this.setDebugStatus('ERROR', '', 'Subscribe failed');
-            reject(err);
-          } else {
-            console.log(`[NetworkEngine Host] ✅ Subscribed to: ${this.currentTopic}`);
-            this.setDebugStatus('READY');
-            resolve();
-          }
-        });
+    // Launch both MQTT and PeerJS in parallel
+    const [mqttResult] = await Promise.all([
+      this.connectMqtt(0),
+      this.initHostPeer(this.roomCode)
+    ]);
+
+    if (mqttResult) {
+      mqttResult.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
+        if (!err) {
+          console.log(`[NetworkEngine Host] ✅ Subscribed to MQTT topic: ${this.currentTopic}`);
+          this.setDebugStatus('READY');
+        }
       });
-
-      // Periodic Host Heartbeat
-      this.heartbeatTimer = setInterval(() => {
-        this.send('ROOM_HEARTBEAT', {
-          roomCode: this.roomCode,
-          hostClientId: this.clientId
-        });
-      }, 2500);
-
-      return this.roomCode;
-    } catch (e: any) {
-      console.error('[NetworkEngine Host] Connection failed:', e);
-      this.setDebugStatus('ERROR', '', e?.message || 'Host connection failed');
-      return this.roomCode;
     }
+
+    // Heartbeat broadcast every 2.5s over both transports
+    this.heartbeatTimer = setInterval(() => {
+      this.send('ROOM_HEARTBEAT', {
+        roomCode: this.roomCode,
+        hostClientId: this.clientId
+      });
+    }, 2500);
+
+    return this.roomCode;
   }
 
   /**
-   * Client joins a room.
+   * Client joins a room with Dual Hybrid Transport (MQTT + WebRTC).
    */
   public async joinRoom(
     roomCode: string,
@@ -359,100 +483,125 @@ export class NetworkEngine {
     this.roomCode = normalizeRoomCode(roomCode);
     this.currentTopic = this.getTopic(this.roomCode);
 
-    try {
-      const client = await this.connectBroker(0);
+    this.setDebugStatus('CONNECTING');
 
-      await new Promise<void>((resolve, reject) => {
-        this.setDebugStatus('SUBSCRIBING');
-        client.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
-          if (err) {
-            console.error('[NetworkEngine Client] Subscribe error:', err);
-            reject(err);
-          } else {
-            console.log(`[NetworkEngine Client] ✅ Subscribed to: ${this.currentTopic}`);
-            this.setDebugStatus('READY');
-            resolve();
-          }
-        });
-      });
+    let responseReceived = false;
 
-      let responseReceived = false;
-
-      const unsubscribe = this.onMessage((msg) => {
-        if (msg.event === 'LOBBY_STATE' || msg.event === 'GAME_STATE' || msg.event === 'ROOM_HEARTBEAT' || msg.event === 'JOIN_ACK') {
-          if (!responseReceived) {
-            responseReceived = true;
-            if (this.joinRetryTimer) clearInterval(this.joinRetryTimer);
-            unsubscribe();
-            console.log(`[NetworkEngine Client] ✅ Host acknowledged! Event: ${msg.event}`);
-            if (onSuccess) onSuccess();
-          }
-        }
-      });
-
-      // Send initial JOIN_ROOM
-      this.send('JOIN_ROOM', {
-        ...playerInfo,
-        roomCode: this.roomCode,
-        clientSenderId: this.clientId
-      });
-
-      // Retry up to 8 times (~10 seconds)
-      let attempts = 0;
-      this.joinRetryTimer = setInterval(() => {
-        attempts++;
-        if (responseReceived) {
-          clearInterval(this.joinRetryTimer);
-          return;
-        }
-        if (attempts >= 8) {
-          clearInterval(this.joinRetryTimer);
+    const unsubscribe = this.onMessage((msg) => {
+      if (
+        msg.event === 'LOBBY_STATE' ||
+        msg.event === 'GAME_STATE' ||
+        msg.event === 'ROOM_HEARTBEAT' ||
+        msg.event === 'JOIN_ACK'
+      ) {
+        if (!responseReceived) {
+          responseReceived = true;
+          if (this.joinRetryTimer) clearInterval(this.joinRetryTimer);
           unsubscribe();
-          console.warn('[NetworkEngine Client] ❌ Host not found after 8 retries');
-          if (onFailed) onFailed('HOST_NOT_FOUND');
-        } else {
-          console.log(`[NetworkEngine] Retry JOIN_ROOM (${attempts + 1}/8)...`);
+          console.log(`[NetworkEngine Client] ✅ Room connected via ${msg.event}`);
+          this.setDebugStatus('READY');
+          if (onSuccess) onSuccess();
+        }
+      }
+    });
+
+    // Launch both MQTT and WebRTC connect concurrently
+    Promise.all([
+      this.connectMqtt(0).then((client) => {
+        if (client) {
+          client.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
+            if (!err) {
+              console.log(`[NetworkEngine Client] ✅ Subscribed to MQTT topic: ${this.currentTopic}`);
+              this.send('JOIN_ROOM', {
+                ...playerInfo,
+                roomCode: this.roomCode,
+                clientSenderId: this.clientId
+              });
+            }
+          });
+        }
+      }),
+      this.connectClientPeer(this.roomCode).then((connected) => {
+        if (connected) {
           this.send('JOIN_ROOM', {
             ...playerInfo,
             roomCode: this.roomCode,
             clientSenderId: this.clientId
           });
         }
-      }, 1200);
+      })
+    ]);
 
-      return true;
-    } catch (e: any) {
-      console.error('[NetworkEngine Client] Join failed:', e);
-      this.setDebugStatus('ERROR', '', e?.message || 'Join failed');
-      if (onFailed) onFailed(e?.message || 'NETWORK_ERROR');
-      return false;
-    }
+    // Retry loop up to 8 attempts (~10 seconds)
+    let attempts = 0;
+    this.joinRetryTimer = setInterval(() => {
+      attempts++;
+      if (responseReceived) {
+        clearInterval(this.joinRetryTimer);
+        return;
+      }
+      if (attempts >= 8) {
+        clearInterval(this.joinRetryTimer);
+        unsubscribe();
+        console.warn('[NetworkEngine Client] ❌ Host not found after 8 retries');
+        if (onFailed) onFailed('HOST_NOT_FOUND');
+      } else {
+        console.log(`[NetworkEngine] Retry JOIN_ROOM (${attempts + 1}/8)...`);
+        this.send('JOIN_ROOM', {
+          ...playerInfo,
+          roomCode: this.roomCode,
+          clientSenderId: this.clientId
+        });
+      }
+    }, 1200);
+
+    return true;
   }
 
   /**
-   * Publish a message to the room topic.
+   * Publish a message to all connected peers over both MQTT and WebRTC DataChannels.
    */
   public send(event: string, payload: any): void {
-    if (!this.client || !this.client.connected || !this.currentTopic) {
-      console.warn(`[NetworkEngine] Cannot send ${event}: not connected (client=${!!this.client}, connected=${this.client?.connected}, topic=${this.currentTopic})`);
-      return;
-    }
-
     const msg: NetworkMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       event,
       payload,
       senderId: this.clientId,
       timestamp: Date.now()
     };
 
-    try {
-      this.client.publish(this.currentTopic, JSON.stringify(msg), { qos: 0 });
+    let sent = false;
+
+    // 1. Send via MQTT if connected
+    if (this.mqttClient && this.mqttClient.connected && this.currentTopic) {
+      try {
+        this.mqttClient.publish(this.currentTopic, JSON.stringify(msg), { qos: 0 });
+        sent = true;
+      } catch (_) {}
+    }
+
+    // 2. Send via WebRTC PeerJS
+    if (this.isHost) {
+      for (const [_, conn] of this.peerConnections.entries()) {
+        if (conn.open) {
+          try {
+            conn.send(msg);
+            sent = true;
+          } catch (_) {}
+        }
+      }
+    } else if (this.hostPeerConnection && this.hostPeerConnection.open) {
+      try {
+        this.hostPeerConnection.send(msg);
+        sent = true;
+      } catch (_) {}
+    }
+
+    if (sent) {
       this._msgSent++;
       if (event !== 'ROOM_HEARTBEAT') {
-        console.log(`[NetworkEngine] 📤 Sent: ${event}`);
+        console.log(`[NetworkEngine] 📤 Sent (${this._activeTransport}): ${event}`);
       }
-    } catch (e) {
-      console.error('[NetworkEngine] Publish error:', e);
     }
   }
 
@@ -465,16 +614,29 @@ export class NetworkEngine {
       clearInterval(this.joinRetryTimer);
       this.joinRetryTimer = null;
     }
-    if (this.client) {
+    if (this.mqttClient) {
       try {
-        if (this.currentTopic) this.client.unsubscribe(this.currentTopic);
-        this.client.end(true);
+        if (this.currentTopic) this.mqttClient.unsubscribe(this.currentTopic);
+        this.mqttClient.end(true);
       } catch (_) {}
-      this.client = null;
+      this.mqttClient = null;
+    }
+    if (this.hostPeerConnection) {
+      try { this.hostPeerConnection.close(); } catch (_) {}
+      this.hostPeerConnection = null;
+    }
+    for (const [_, conn] of this.peerConnections.entries()) {
+      try { conn.close(); } catch (_) {}
+    }
+    this.peerConnections.clear();
+    if (this.peer) {
+      try { this.peer.destroy(); } catch (_) {}
+      this.peer = null;
     }
     this.isConnected = false;
     this.isHost = false;
     this.currentTopic = '';
+    this._activeTransport = 'NONE';
     this.setDebugStatus('IDLE');
   }
 }
