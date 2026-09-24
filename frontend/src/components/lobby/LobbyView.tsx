@@ -108,10 +108,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               {lobbyState.options?.variant}
             </span>
             <span className="px-3 py-1 rounded-full bg-black/40 border border-white/10">
-              {lobbyState.players.length} / {lobbyState.options?.maxPlayers} {t('lobby.players_count')}
+              {lobbyState.players.length} / {lobbyState.options?.maxPlayers} {language === 'ar' ? 'لاعبين' : 'Players'}
             </span>
             <span className="px-3 py-1 rounded-full bg-black/40 border border-white/10">
-              {lobbyState.options?.targetScore || lobbyState.options?.pointsCap} نقطة
+              {lobbyState.options?.targetScore || lobbyState.options?.pointsCap} {language === 'ar' ? 'نقطة' : 'pts'}
             </span>
           </div>
         </div>
@@ -124,7 +124,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               <span>{t('lobby.connected_players')}</span>
             </h3>
             <span className="text-xs font-bold text-slate-400">
-              {lobbyState.players.length} جاهزون
+              {lobbyState.players.length} {language === 'ar' ? 'جاهزون' : 'Ready'}
             </span>
           </div>
 
@@ -146,13 +146,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     <div>
                       <div className="font-black text-white text-sm flex items-center gap-1.5">
                         <span>{p.name}</span>
-                        {isMe && <span className="text-[10px] text-amber-400">(أنت)</span>}
+                        {isMe && <span className="text-[10px] text-amber-400">({language === 'ar' ? 'أنت' : 'You'})</span>}
                       </div>
                       {is2v2 && (
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block mt-0.5 ${
                           p.team === 'A' ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'
                         }`}>
-                          فريق {p.team}
+                          {language === 'ar' ? 'فريق' : 'Team'} {p.team}
                         </span>
                       )}
                     </div>
@@ -178,7 +178,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 className="py-3 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-extrabold text-xs border border-amber-500/30 flex items-center justify-center gap-2 transition-all active:scale-95 shadow"
               >
                 <Bot size={16} />
-                <span>إضافة لاعب بوت ذكي (Add AI Bot) 🤖</span>
+                <span>{language === 'ar' ? 'إضافة لاعب بوت ذكي 🤖' : 'Add AI Bot Player 🤖'}</span>
               </button>
             )}
 
@@ -191,7 +191,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 }`}
               >
                 <Play size={20} />
-                <span>{t('lobby.start_game')} ({lobbyState.players.length} لاعبين)</span>
+                <span>{t('lobby.start_game')} ({lobbyState.players.length} {language === 'ar' ? 'لاعبين' : 'Players'})</span>
               </button>
             ) : (
               <div className="text-center py-3 text-sm font-bold text-amber-300 animate-pulse">
@@ -205,7 +205,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onClick={() => { sound.playCardSlide(); onLeaveRoom(); }}
                 className="py-1.5 text-xs text-slate-400 hover:text-red-400 font-bold transition-colors text-center"
               >
-                مغادرة الغرفة والعودة
+                {language === 'ar' ? 'مغادرة الغرفة والعودة' : 'Leave Room & Return'}
               </button>
             )}
           </div>
@@ -223,11 +223,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
           <span className="text-xs font-black text-white flex items-center gap-1.5">
             <Radio size={14} className={isConnected ? 'text-emerald-400' : 'text-amber-400'} />
-            <span>{isConnected ? 'سيرفر الأونلاين متصل (WebSocket Live)' : 'الغرفة الفورية الذكية (Smart PWA Host)'}</span>
+            <span>{isConnected ? (language === 'ar' ? 'سيرفر الأونلاين متصل (WebSocket Live)' : 'Online WebSocket Connected') : (language === 'ar' ? 'غرفة PWA المباشرة (WebRTC Live)' : 'Direct PWA Room (WebRTC Live)')}</span>
           </span>
         </div>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
-          جاهز للعب فوراً
+          {language === 'ar' ? 'جاهز للعب فوراً' : 'Ready to Play'}
         </span>
       </div>
 
@@ -251,7 +251,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="اسمك في اللعبة..."
+              placeholder={language === 'ar' ? 'اسمك في اللعبة...' : 'Your player name...'}
               maxLength={14}
               className="input-field"
             />
@@ -314,7 +314,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         <form onSubmit={handleJoin} className="glass-panel p-6 flex flex-col gap-4 border border-white/10 shadow-2xl">
           <div>
             <label className="text-xs font-black text-amber-400 uppercase tracking-widest block mb-1">
-              {t('lobby.room_code')} (مثال: SKRU-9X2)
+              {t('lobby.room_code')} ({language === 'ar' ? 'مثال: SKRU-9X2' : 'e.g. SKRU-9X2'})
             </label>
             <input
               type="text"
@@ -329,7 +329,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
           <div>
             <label className="text-xs font-bold text-slate-400 block mb-1">
-              {t('lobby.room_passcode')} (اختياري)
+              {t('lobby.room_passcode')} ({language === 'ar' ? 'اختياري' : 'Optional'})
             </label>
             <input
               type="password"
@@ -356,22 +356,26 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[
-                { id: 'CLASSIC', label: 'كلاسيك 68 كارت' },
-                { id: 'SAHEB_SA7BO', label: 'صاحب صاحبه (2v2)' },
-                { id: 'DELUXE', label: 'ديلوكس بلس' },
-                { id: 'FRENCH_DECK', label: 'كوتشينة عادية' }
+                { id: 'CLASSIC', labelAr: 'كلاسيك 68 كارت', labelEn: 'Classic (68 Cards)' },
+                { id: 'SAHEB_SA7BO', labelAr: 'صاحب صاحبه (2v2)', labelEn: 'Saheb Sa7bo (2v2)' },
+                { id: 'DELUXE', labelAr: 'ديلوكس بلس', labelEn: 'Deluxe (+25 & Freeze)' },
+                { id: 'FRENCH_DECK', labelAr: 'كوتشينة عادية (52)', labelEn: 'French Deck (52 Cards)' }
               ].map(v => (
                 <button
                   key={v.id}
                   type="button"
-                  onClick={() => { sound.playCardFlip(); setVariant(v.id as any); }}
+                  onClick={() => { 
+                    sound.playCardFlip(); 
+                    setVariant(v.id as any);
+                    if (v.id === 'SAHEB_SA7BO') setMaxPlayers(4);
+                  }}
                   className={`p-3 rounded-xl text-xs font-black border transition-all text-center ${
                     variant === v.id 
                       ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-md scale-102' 
                       : 'bg-black/30 border-white/10 text-slate-400 hover:text-white'
                   }`}
                 >
-                  {v.label}
+                  {language === 'ar' ? v.labelAr : v.labelEn}
                 </button>
               ))}
             </div>
@@ -380,40 +384,41 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-400 block mb-1">
-                الحد الأقصى للاعبين
+                {language === 'ar' ? 'الحد الأقصى للاعبين' : 'Max Players'}
               </label>
               <select
                 value={maxPlayers}
                 onChange={e => setMaxPlayers(parseInt(e.target.value, 10))}
                 className="input-field"
+                disabled={variant === 'SAHEB_SA7BO'}
               >
-                <option value={2}>2 لاعبين</option>
-                <option value={3}>3 لاعبين</option>
-                <option value={4}>4 لاعبين</option>
-                <option value={6}>6 لاعبين</option>
-                <option value={8}>8 لاعبين</option>
+                <option value={2}>2 {language === 'ar' ? 'لاعبين' : 'Players'}</option>
+                <option value={3}>3 {language === 'ar' ? 'لاعبين' : 'Players'}</option>
+                <option value={4}>4 {language === 'ar' ? 'لاعبين (موصى به)' : 'Players (Recommended)'}</option>
+                <option value={6}>6 {language === 'ar' ? 'لاعبين' : 'Players'}</option>
+                <option value={8}>8 {language === 'ar' ? 'لاعبين' : 'Players'}</option>
               </select>
             </div>
 
             <div>
               <label className="text-xs font-bold text-slate-400 block mb-1">
-                حد نقاط الخسارة
+                {language === 'ar' ? 'حد نقاط الخسارة' : 'Points Cap (Game Over)'}
               </label>
               <select
                 value={pointsCap}
                 onChange={e => setPointsCap(parseInt(e.target.value, 10))}
                 className="input-field"
               >
-                <option value={50}>50 نقطة (مباراة سريعة)</option>
-                <option value={100}>100 نقطة (قياسي)</option>
-                <option value={150}>150 نقطة (طويلة)</option>
+                <option value={50}>50 {language === 'ar' ? 'نقطة (مباراة سريعة)' : 'pts (Quick Match)'}</option>
+                <option value={100}>100 {language === 'ar' ? 'نقطة (قياسي)' : 'pts (Standard)'}</option>
+                <option value={150}>150 {language === 'ar' ? 'نقطة (طويلة)' : 'pts (Long Match)'}</option>
               </select>
             </div>
           </div>
 
           <button type="submit" className="btn-gold py-3.5 text-base font-black shadow-xl mt-2">
             <Sparkles size={18} />
-            <span>إنشاء الغرفة الآن</span>
+            <span>{language === 'ar' ? 'إنشاء الغرفة الآن' : 'Create Room Now'}</span>
           </button>
         </form>
       )}

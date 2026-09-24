@@ -353,7 +353,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
               />
             ) : (
               <div className="card-slot">
-                <span className="text-xs font-bold text-slate-400">فارغ</span>
+                <span className="text-xs font-bold text-slate-400">{language === 'ar' ? 'فارغ' : 'Empty'}</span>
               </div>
             )}
             <span className="text-xs font-black mt-2 text-slate-200">
@@ -422,13 +422,13 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                     disabled={selectedOwnCardIdx === null}
                     className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-xs disabled:opacity-40 shadow"
                   >
-                    تبديل الكارت الآن
+                    {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
                   </button>
                   <button
                     onClick={() => onExecuteAction({ chooseSwap: false })}
                     className="flex-1 py-2.5 rounded-xl bg-slate-700 text-white font-black text-xs shadow"
                   >
-                    احتفظ بكروتك
+                    {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
                   </button>
                 </div>
               )}
@@ -525,7 +525,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           <button
             onClick={() => setActiveSheet(activeSheet === 'SCOREBOARD' ? 'NONE' : 'SCOREBOARD')}
             className="p-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/15 active:scale-95 transition-all shadow"
-            title="النتائج"
+            title={language === 'ar' ? 'النتائج' : 'Scoreboard'}
           >
             <Award size={18} className="text-amber-400" />
           </button>
@@ -534,7 +534,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           <button
             onClick={() => setActiveSheet(activeSheet === 'CHAT' ? 'NONE' : 'CHAT')}
             className="p-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/15 active:scale-95 transition-all shadow relative"
-            title="الدردشة والتفاعلات"
+            title={language === 'ar' ? 'الدردشة والتفاعلات' : 'Chat & Reactions'}
           >
             <MessageSquare size={18} className="text-emerald-400" />
             {chatMessages.length > 0 && (
@@ -591,7 +591,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                     <span className="text-xl font-black text-amber-400 font-mono">
                       {p.totalScore}
                     </span>
-                    <span className="text-[10px] text-slate-400 block">نقطة</span>
+                    <span className="text-[10px] text-slate-400 block">{language === 'ar' ? 'نقطة' : 'pts'}</span>
                   </div>
                 </div>
               ))}
@@ -618,7 +618,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
 
             <div className="flex-1 overflow-y-auto min-h-[200px] max-h-[300px] flex flex-col gap-2 p-2 rounded-xl bg-black/30 border border-white/5">
               {chatMessages.length === 0 ? (
-                <span className="text-xs text-slate-500 m-auto">لا توجد رسائل بعد...</span>
+                <span className="text-xs text-slate-500 m-auto">{language === 'ar' ? 'لا توجد رسائل بعد...' : 'No messages yet...'}</span>
               ) : (
                 chatMessages.map((m, idx) => (
                   <div key={idx} className="text-xs p-2 rounded-lg bg-white/10">
@@ -634,7 +634,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                 type="text"
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
-                placeholder="اكتب رسالتك..."
+                placeholder={language === 'ar' ? 'اكتب رسالتك...' : 'Type a message...'}
                 className="input-field py-2 text-xs flex-1"
               />
               <button type="submit" className="p-2.5 rounded-xl bg-emerald-600 text-white font-bold">
@@ -668,7 +668,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                       +{p.roundScores[p.roundScores.length - 1] ?? 0}
                     </span>
                     <span className="text-xs text-slate-400 block font-mono">
-                      (إجمالي: {p.totalScore})
+                      ({language === 'ar' ? 'إجمالي' : 'Total'}: {p.totalScore})
                     </span>
                   </div>
                 </div>

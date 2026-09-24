@@ -116,6 +116,86 @@ html.light {
 }
 
 /* ==========================================
+   LIGHT THEME CONTRAST & ACCESSIBILITY OVERRIDES
+   Ensures 100% legibility in Light Mode
+   ========================================== */
+html.light .text-white {
+  color: #0F172A !important;
+}
+
+html.light .btn-primary,
+html.light .btn-gold,
+html.light .btn-skru,
+html.light .btn-primary *,
+html.light .btn-gold *,
+html.light .btn-skru * {
+  color: #FFFFFF !important;
+}
+
+html.light .text-slate-200,
+html.light .text-slate-300 {
+  color: #1E293B !important;
+}
+
+html.light .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.light .text-slate-500 {
+  color: #64748B !important;
+}
+
+html.light .glass-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.14) !important;
+  color: #0F172A !important;
+}
+
+html.light .bg-black\/30,
+html.light .bg-black\/35,
+html.light .bg-black\/40,
+html.light .bg-black\/45,
+html.light .bg-black\/50,
+html.light .bg-black\/60,
+html.light .bg-black\/70,
+html.light .bg-black\/80 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: #0F172A !important;
+}
+
+html.light .input-field {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+  border: 1.5px solid rgba(15, 23, 42, 0.25) !important;
+}
+
+html.light .input-field::placeholder {
+  color: #94A3B8 !important;
+}
+
+html.light select.input-field option {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+html.light .bg-white\/5,
+html.light .bg-white\/10,
+html.light .bg-white\/15,
+html.light .bg-white\/20 {
+  background-color: rgba(15, 23, 42, 0.06) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: #0F172A !important;
+}
+
+html.light .border-white\/10,
+html.light .border-white\/15,
+html.light .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+/* ==========================================
    BASE RESET & GLOBAL TYPOGRAPHY
    ========================================== */
 *, *::before, *::after {
@@ -651,10 +731,11 @@ input, select, textarea {
 
 /* Card Front */
 .card-front {
-  background: var(--card-front-bg);
+  background: #FFFFFF !important;
+  color: #0F172A;
   border: 2px solid rgba(52, 211, 153, 0.45);
   transform: rotateY(180deg);
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18), inset 0 0 8px rgba(0, 0, 0, 0.04);
 }
 
 /* Color theme card fronts */

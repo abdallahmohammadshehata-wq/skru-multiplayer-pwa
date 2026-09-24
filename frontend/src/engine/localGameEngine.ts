@@ -12,30 +12,81 @@ function genId(prefix: string) {
 
 export function createLocalDeck(variant: GameVariant): Card[] {
   const cards: Card[] = [];
-  // -1
-  for (let i = 0; i < 4; i++) cards.push({ id: genId('n1'), value: -1, action: 'NONE', labelAr: '-1 سكرو', labelEn: '-1 Skru', color: 'crimson', isFaceUp: false });
-  // 0
-  for (let i = 0; i < 4; i++) cards.push({ id: genId('z0'), value: 0, action: 'NONE', labelAr: '0 صفر', labelEn: '0 Zero', color: 'gold', isFaceUp: false });
-  // 1-6
-  for (let v = 1; v <= 6; v++) {
-    for (let i = 0; i < 4; i++) cards.push({ id: genId(`n_${v}`), value: v, action: 'NONE', labelAr: `${v}`, labelEn: `${v}`, color: 'emerald', isFaceUp: false });
+
+  if (variant === 'FRENCH_DECK') {
+    // Standard 52-card French deck adapted for Skru:
+    // Red Kings (Hearts, Diamonds) = 0 points (Zero Skru)
+    cards.push({ id: genId('k_red_h'), value: 0, action: 'NONE', labelAr: '0 كينج أحمر', labelEn: '0 Red K♥', color: 'crimson', isFaceUp: false });
+    cards.push({ id: genId('k_red_d'), value: 0, action: 'NONE', labelAr: '0 كينج أحمر', labelEn: '0 Red K♦', color: 'crimson', isFaceUp: false });
+    // Black Kings (Spades, Clubs) = 13 points
+    cards.push({ id: genId('k_blk_s'), value: 13, action: 'NONE', labelAr: '13 كينج أسود', labelEn: '13 Black K♠', color: 'indigo', isFaceUp: false });
+    cards.push({ id: genId('k_blk_c'), value: 13, action: 'NONE', labelAr: '13 كينج أسود', labelEn: '13 Black K♣', color: 'indigo', isFaceUp: false });
+
+    // Aces = 1 point
+    for (const suit of ['♠', '♥', '♦', '♣']) {
+      cards.push({ id: genId(`ace_${suit}`), value: 1, action: 'NONE', labelAr: '1 آس', labelEn: `1 A${suit}`, color: 'emerald', isFaceUp: false });
+    }
+    // 2 through 6 = standard numbers
+    for (let v = 2; v <= 6; v++) {
+      for (const suit of ['♠', '♥', '♦', '♣']) {
+        cards.push({ id: genId(`card_${v}_${suit}`), value: v, action: 'NONE', labelAr: `${v}`, labelEn: `${v}${suit}`, color: 'emerald', isFaceUp: false });
+      }
+    }
+    // 7 & 8 = Peek Own
+    for (const v of [7, 8]) {
+      for (const suit of ['♠', '♥', '♦', '♣']) {
+        cards.push({ id: genId(`po_${v}_${suit}`), value: v, action: 'PEEK_OWN', labelAr: `${v} (خد فكرة)`, labelEn: `${v}${suit} (Peek Own)`, color: 'purple', isFaceUp: false });
+      }
+    }
+    // 9 & 10 = Peek Other
+    for (const v of [9, 10]) {
+      for (const suit of ['♠', '♥', '♦', '♣']) {
+        cards.push({ id: genId(`poth_${v}_${suit}`), value: v, action: 'PEEK_OTHER', labelAr: `${v} (بصرة)`, labelEn: `${v}${suit} (Peek Other)`, color: 'amber', isFaceUp: false });
+      }
+    }
+    // Jacks (11) = Swap
+    for (const suit of ['♠', '♥', '♦', '♣']) {
+      cards.push({ id: genId(`j_${suit}`), value: 11, action: 'SWAP', labelAr: 'ولد (هات وخد)', labelEn: `J${suit} (Swap)`, color: 'indigo', isFaceUp: false });
+    }
+    // Queens (12) = Peek & Swap
+    for (const suit of ['♠', '♥', '♦', '♣']) {
+      cards.push({ id: genId(`q_${suit}`), value: 12, action: 'PEEK_AND_SWAP', labelAr: 'بنت (خد وهات)', labelEn: `Q${suit} (Peek & Swap)`, color: 'purple', isFaceUp: false });
+    }
+  } else {
+    // CLASSIC, SAHEB_SA7BO, and DELUXE
+    // -1 Skru (4 cards)
+    for (let i = 0; i < 4; i++) cards.push({ id: genId('n1'), value: -1, action: 'NONE', labelAr: '-1 سكرو', labelEn: '-1 Skru', color: 'crimson', isFaceUp: false });
+    // 0 Zero (4 cards)
+    for (let i = 0; i < 4; i++) cards.push({ id: genId('z0'), value: 0, action: 'NONE', labelAr: '0 صفر', labelEn: '0 Zero', color: 'gold', isFaceUp: false });
+    // 1-6 Numbers
+    for (let v = 1; v <= 6; v++) {
+      for (let i = 0; i < 4; i++) cards.push({ id: genId(`n_${v}`), value: v, action: 'NONE', labelAr: `${v}`, labelEn: `${v}`, color: 'emerald', isFaceUp: false });
+    }
+    // 7 & 8 Peek Own
+    for (const v of [7, 8]) {
+      for (let i = 0; i < 4; i++) cards.push({ id: genId(`po_${v}`), value: v, action: 'PEEK_OWN', labelAr: `${v} (خد فكرة)`, labelEn: `${v} (Peek Own)`, color: 'purple', isFaceUp: false });
+    }
+    // 9 & 10 Peek Other
+    for (const v of [9, 10]) {
+      for (let i = 0; i < 4; i++) cards.push({ id: genId(`poth_${v}`), value: v, action: 'PEEK_OTHER', labelAr: `${v} (بصرة)`, labelEn: `${v} (Peek Other)`, color: 'amber', isFaceUp: false });
+    }
+    // Swap (Value 11)
+    for (let i = 0; i < 6; i++) cards.push({ id: genId('swap'), value: 11, action: 'SWAP', labelAr: 'هات وخد', labelEn: 'Swap', color: 'indigo', isFaceUp: false });
+    // Peek & Swap (Value 12)
+    for (let i = 0; i < 4; i++) cards.push({ id: genId('ps'), value: 12, action: 'PEEK_AND_SWAP', labelAr: 'خد وهات بصرة', labelEn: 'Peek & Swap', color: 'purple', isFaceUp: false });
+    // Peek All (Value 12)
+    for (let i = 0; i < 4; i++) cards.push({ id: genId('pa'), value: 12, action: 'PEEK_ALL', labelAr: 'كعب داير', labelEn: 'Peek All', color: 'gold', isFaceUp: false });
+    // Penalty 20 (6 cards)
+    for (let i = 0; i < 6; i++) cards.push({ id: genId('p20'), value: 20, action: 'NONE', labelAr: '+20 غرامة', labelEn: '+20 Penalty', color: 'crimson', isFaceUp: false });
+
+    // DELUXE specific extra cards
+    if (variant === 'DELUXE') {
+      // Freeze (Value 10)
+      for (let i = 0; i < 3; i++) cards.push({ id: genId('frz'), value: 10, action: 'FREEZE', labelAr: 'تجميد دور ❄️', labelEn: 'Freeze Turn ❄️', color: 'indigo', isFaceUp: false });
+      // Bomb +25 (Value 25)
+      for (let i = 0; i < 3; i++) cards.push({ id: genId('bmb'), value: 25, action: 'BOMB', labelAr: '+25 قنبلة 💣', labelEn: '+25 Bomb 💣', color: 'crimson', isFaceUp: false });
+    }
   }
-  // 7 & 8 Peek Own
-  for (let v of [7, 8]) {
-    for (let i = 0; i < 4; i++) cards.push({ id: genId(`po_${v}`), value: v, action: 'PEEK_OWN', labelAr: `${v} (خد فكرة)`, labelEn: `${v} (Peek Own)`, color: 'purple', isFaceUp: false });
-  }
-  // 9 & 10 Peek Other
-  for (let v of [9, 10]) {
-    for (let i = 0; i < 4; i++) cards.push({ id: genId(`poth_${v}`), value: v, action: 'PEEK_OTHER', labelAr: `${v} (بصرة)`, labelEn: `${v} (Peek Other)`, color: 'amber', isFaceUp: false });
-  }
-  // Swap
-  for (let i = 0; i < 6; i++) cards.push({ id: genId('swap'), value: 11, action: 'SWAP', labelAr: 'هات وخد', labelEn: 'Swap', color: 'indigo', isFaceUp: false });
-  // Peek & Swap
-  for (let i = 0; i < 4; i++) cards.push({ id: genId('ps'), value: 12, action: 'PEEK_AND_SWAP', labelAr: 'خد وهات بصرة', labelEn: 'Peek & Swap', color: 'purple', isFaceUp: false });
-  // Peek All
-  for (let i = 0; i < 4; i++) cards.push({ id: genId('pa'), value: 12, action: 'PEEK_ALL', labelAr: 'كعب داير', labelEn: 'Peek All', color: 'gold', isFaceUp: false });
-  // Penalty 20
-  for (let i = 0; i < 6; i++) cards.push({ id: genId('p20'), value: 20, action: 'NONE', labelAr: '+20 غرامة', labelEn: '+20 Penalty', color: 'crimson', isFaceUp: false });
 
   // Shuffle
   for (let i = cards.length - 1; i > 0; i--) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SanitizedGameState, Card, GameVariant } from '../types';
 import { LocalGameSession } from '../engine/localGameEngine';
+import { peerEngine } from './peerEngine';
 
 export interface UseSkruSocketReturn {
   isConnected: boolean;
@@ -105,6 +106,11 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
     };
 
     setGameState(state);
+
+    // Relay to connected peer clients across different networks via WebRTC
+    if (peerEngine.isHost) {
+      peerEngine.send('GAME_STATE', state);
+    }
 
     // Cross-tab broadcast
     if (broadcastChannelRef.current) {
@@ -264,6 +270,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
         localLobbyRef.current = lobby;
         setLobbyState(lobby);
 
+        // Host on WebRTC network with this room code
+        peerEngine.hostRoom(roomCode);
+
         if (broadcastChannelRef.current) {
           broadcastChannelRef.current.postMessage({ type: 'LOBBY_STATE', payload: lobby });
         }
@@ -272,38 +281,36 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
 
       case 'JOIN_ROOM': {
         const { roomCode, playerId, name, avatar, team } = payload;
+        
+        // Connect to room host via WebRTC PeerJS
+        peerEngine.joinRoom(roomCode, () => {
+          peerEngine.send('JOIN_ROOM', {
+            playerId: playerId || myId,
+            name: name || 'Player',
+            avatar: avatar || '🦁',
+            team
+          });
+        });
+
         let lobby = localLobbyRef.current;
-        if (!lobby) {
-          // Create instant lobby for this code
+        if (!lobby || lobby.roomCode !== roomCode) {
           lobby = {
             roomCode,
             status: 'LOBBY',
-            hostId: playerId || myId,
+            hostId: '',
             options: { variant: 'CLASSIC', pointsCap: 100, turnTimer: 20, maxPlayers: 4 },
-            players: [],
+            players: [{
+              id: playerId || myId,
+              name: name || 'Player',
+              avatar: avatar || '🦁',
+              team: team || 'A',
+              connected: true,
+              isHost: false
+            }],
             spectators: []
           };
-        }
-
-        const newPlayer = {
-          id: playerId || myId,
-          name: name || 'Player',
-          avatar: avatar || '🦁',
-          team: team || (lobby.players.length % 2 === 0 ? 'A' : 'B'),
-          connected: true,
-          isHost: lobby.players.length === 0
-        };
-
-        const updatedLobby = {
-          ...lobby,
-          players: [...lobby.players.filter((p: any) => p.id !== newPlayer.id), newPlayer]
-        };
-
-        localLobbyRef.current = updatedLobby;
-        setLobbyState(updatedLobby);
-
-        if (broadcastChannelRef.current) {
-          broadcastChannelRef.current.postMessage({ type: 'LOBBY_STATE', payload: updatedLobby });
+          localLobbyRef.current = lobby;
+          setLobbyState(lobby);
         }
         break;
       }
@@ -333,6 +340,10 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
 
         localLobbyRef.current = updatedLobby;
         setLobbyState(updatedLobby);
+
+        if (peerEngine.isHost) {
+          peerEngine.send('LOBBY_STATE', updatedLobby);
+        }
 
         if (broadcastChannelRef.current) {
           broadcastChannelRef.current.postMessage({ type: 'LOBBY_STATE', payload: updatedLobby });
@@ -510,6 +521,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
           timestamp: Date.now()
         };
         setChatMessages(prev => [...prev.slice(-25), chatItem]);
+        if (peerEngine.isReady) {
+          peerEngine.send('CHAT_MESSAGE', chatItem);
+        }
         if (broadcastChannelRef.current) {
           broadcastChannelRef.current.postMessage({ type: 'CHAT_MESSAGE', payload: chatItem });
         }
@@ -526,6 +540,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
         setTimeout(() => {
           setEmojiReactions(prev => prev.filter(e => e.id !== emojiItem.id));
         }, 2500);
+        if (peerEngine.isReady) {
+          peerEngine.send('EMOJI_REACTION', emojiItem);
+        }
         if (broadcastChannelRef.current) {
           broadcastChannelRef.current.postMessage({ type: 'EMOJI_REACTION', payload: emojiItem });
         }
@@ -537,11 +554,127 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
     }
   }, [syncLocalGameState]);
 
+  // WebRTC PeerJS message dispatch and reception
+  useEffect(() => {
+    const unsub = peerEngine.onMessage((msg: any) => {
+      const { event, payload, senderPeerId } = msg;
+
+      if (peerEngine.isHost) {
+        // Host receiving action/request from client peer
+        switch (event) {
+          case 'JOIN_ROOM': {
+            const currentLobby = localLobbyRef.current;
+            if (!currentLobby) return;
+            const newPlayer = {
+              id: payload.playerId || `peer_${senderPeerId}`,
+              name: payload.name || 'Player',
+              avatar: payload.avatar || '🦁',
+              team: currentLobby.options.variant === 'SAHEB_SA7BO' ? (payload.team || (currentLobby.players.length % 2 === 0 ? 'A' : 'B')) : undefined,
+              connected: true,
+              isHost: false
+            };
+
+            const existingIdx = currentLobby.players.findIndex((p: any) => p.id === newPlayer.id);
+            let updatedPlayers;
+            if (existingIdx >= 0) {
+              updatedPlayers = [...currentLobby.players];
+              updatedPlayers[existingIdx] = newPlayer;
+            } else {
+              updatedPlayers = [...currentLobby.players, newPlayer];
+            }
+
+            const updatedLobby = {
+              ...currentLobby,
+              players: updatedPlayers
+            };
+
+            localLobbyRef.current = updatedLobby;
+            setLobbyState(updatedLobby);
+            peerEngine.send('LOBBY_STATE', updatedLobby);
+            if (broadcastChannelRef.current) {
+              broadcastChannelRef.current.postMessage({ type: 'LOBBY_STATE', payload: updatedLobby });
+            }
+
+            if (localSessionRef.current) {
+              syncLocalGameState();
+            }
+            break;
+          }
+
+          case 'DRAW_CARD':
+          case 'SWAP_CARD':
+          case 'DISCARD_CARD':
+          case 'EXECUTE_ACTION':
+          case 'CALL_SKRU':
+          case 'MATCH_SLAP':
+          case 'START_GAME':
+          case 'START_NEXT_ROUND': {
+            handleClientSideAction(event, payload);
+            break;
+          }
+
+          case 'CHAT_MESSAGE': {
+            setChatMessages(prev => [...prev.slice(-25), payload]);
+            peerEngine.send('CHAT_MESSAGE', payload);
+            break;
+          }
+
+          case 'EMOJI_REACTION': {
+            setEmojiReactions(prev => [...prev.slice(-15), payload]);
+            peerEngine.send('EMOJI_REACTION', payload);
+            break;
+          }
+
+          default:
+            break;
+        }
+      } else {
+        // Client receiving updates from host
+        switch (event) {
+          case 'LOBBY_STATE': {
+            localLobbyRef.current = payload;
+            setLobbyState(payload);
+            break;
+          }
+          case 'GAME_STATE': {
+            setGameState(payload);
+            break;
+          }
+          case 'PEEK_REVEAL': {
+            setPeekReveal(payload);
+            break;
+          }
+          case 'CHAT_MESSAGE': {
+            setChatMessages(prev => [...prev.slice(-25), payload]);
+            break;
+          }
+          case 'EMOJI_REACTION': {
+            const newEmoji = { id: Math.random().toString(), ...payload };
+            setEmojiReactions(prev => [...prev.slice(-15), newEmoji]);
+            setTimeout(() => {
+              setEmojiReactions(prev => prev.filter(e => e.id !== newEmoji.id));
+            }, 2500);
+            break;
+          }
+          default:
+            break;
+        }
+      }
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [handleClientSideAction, syncLocalGameState]);
+
   const send = useCallback((event: string, payload: any) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ event, payload }));
+    } else if (peerEngine.isReady && !peerEngine.isHost && event !== 'CREATE_ROOM' && event !== 'JOIN_ROOM') {
+      // Client peer relays action directly to room host over WebRTC
+      peerEngine.send(event, { ...payload, playerId: myPlayerIdRef.current });
     } else {
-      // Offline / standalone PWA execution
+      // Offline / host execution
       handleClientSideAction(event, payload);
     }
   }, [handleClientSideAction]);
@@ -551,6 +684,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
   }, [send]);
 
   const leaveRoom = useCallback(() => {
+    peerEngine.destroy();
     localSessionRef.current = null;
     localLobbyRef.current = null;
     setLobbyState(null);

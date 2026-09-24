@@ -62,17 +62,17 @@ export const CardView: React.FC<CardProps> = ({
   const getColorTheme = () => {
     switch (color) {
       case 'crimson':
-        return { border: '#EF4444', text: '#F87171', bg: 'rgba(239, 68, 68, 0.12)' };
+        return { border: '#DC2626', text: '#B91C1C', bg: 'rgba(239, 68, 68, 0.14)' };
       case 'gold':
-        return { border: '#F59E0B', text: '#FBBF24', bg: 'rgba(245, 158, 11, 0.12)' };
+        return { border: '#D97706', text: '#B45309', bg: 'rgba(245, 158, 11, 0.14)' };
       case 'purple':
-        return { border: '#A855F7', text: '#C084FC', bg: 'rgba(168, 85, 247, 0.12)' };
+        return { border: '#9333EA', text: '#6D28D9', bg: 'rgba(168, 85, 247, 0.14)' };
       case 'indigo':
-        return { border: '#6366F1', text: '#818CF8', bg: 'rgba(99, 102, 241, 0.12)' };
+        return { border: '#4F46E5', text: '#3730A3', bg: 'rgba(99, 102, 241, 0.14)' };
       case 'amber':
-        return { border: '#F97316', text: '#FB923C', bg: 'rgba(249, 115, 22, 0.12)' };
+        return { border: '#EA580C', text: '#C2410C', bg: 'rgba(249, 115, 22, 0.14)' };
       default:
-        return { border: '#10B981', text: '#34D399', bg: 'rgba(16, 185, 129, 0.12)' };
+        return { border: '#059669', text: '#047857', bg: 'rgba(16, 185, 129, 0.14)' };
     }
   };
 
