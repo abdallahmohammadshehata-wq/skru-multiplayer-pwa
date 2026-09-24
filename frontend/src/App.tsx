@@ -112,6 +112,8 @@ const MainApp: React.FC = () => {
     leaveRoom();
   };
 
+  const isInGame = (currentMode === 'ONLINE' && Boolean(gameState && gameState.status !== 'LOBBY')) || currentMode === 'SOLO';
+
   return (
     <div className="min-h-screen flex flex-col bg-table">
       {/* Header bar */}
@@ -120,6 +122,7 @@ const MainApp: React.FC = () => {
         onSelectMode={(mode) => setCurrentMode(mode)}
         roomCode={gameState?.roomCode || lobbyState?.roomCode}
         onLeaveRoom={gameState || lobbyState ? handleLeaveRoom : undefined}
+        isInGame={isInGame}
       />
 
       {/* Main Mode View */}

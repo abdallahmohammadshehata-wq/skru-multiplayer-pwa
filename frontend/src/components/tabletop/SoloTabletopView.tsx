@@ -241,37 +241,37 @@ export const SoloTabletopView: React.FC = () => {
   };
 
   return (
-    <div className="tabletop-container relative flex flex-col justify-between p-2 sm:p-4 min-h-screen">
+    <div className="tabletop-container casino-table w-full min-h-[100dvh] flex flex-col justify-between pb-3 sm:pb-6 px-2 sm:px-4 pt-2 sm:pt-3 relative overflow-x-hidden">
       {/* Top Bar: Bot Controls & Opponents Arc */}
-      <div className="w-full flex flex-col gap-2 z-20">
+      <div className="w-full flex flex-col gap-1.5 sm:gap-2 z-20">
         {/* Banner notification */}
         {session.logs.length > 0 && (
-          <div className="mx-auto px-4 py-1.5 rounded-full bg-black/50 border border-amber-400/30 text-xs font-bold text-amber-300 shadow backdrop-blur-md max-w-md text-center">
+          <div className="mx-auto px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-black/50 border border-amber-400/30 text-[11px] sm:text-xs font-bold text-amber-300 shadow backdrop-blur-md max-w-md text-center truncate">
             {language === 'ar' ? session.logs[session.logs.length - 1].ar : session.logs[session.logs.length - 1].en}
           </div>
         )}
 
         {/* Initial memory peek countdown banner (6s round start) */}
         {initialPeekTimer > 0 && (
-          <div className="mx-auto px-6 py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 text-black font-black text-xs sm:text-sm shadow-xl animate-pulse text-center border-2 border-white/40">
+          <div className="mx-auto px-4 sm:px-6 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 text-black font-black text-xs sm:text-sm shadow-xl animate-pulse text-center border-2 border-white/40">
             👀 {t('game.initial_peek_banner')} ({initialPeekTimer}s)
           </div>
         )}
 
         {/* Skru Alert Banner */}
         {session.skruCallerIndex !== null && (
-          <div className="mx-auto px-6 py-2 rounded-2xl bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white font-black text-xs sm:text-sm shadow-2xl animate-bounce text-center border-2 border-red-300">
+          <div className="mx-auto px-4 sm:px-6 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white font-black text-xs sm:text-sm shadow-2xl animate-bounce text-center border-2 border-red-300">
             ⚡ {session.players[session.skruCallerIndex].name} {language === 'ar' ? 'أعلن سكرو! باقي دور أخير للجميع' : 'called SKRU! Final turns!'}
           </div>
         )}
 
         {/* Action Pending Guidance Banner */}
         {isPendingAction && (
-          <div className="mx-auto w-full max-w-md p-3 rounded-2xl bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 border-2 border-purple-400 shadow-2xl backdrop-blur-md flex items-center justify-between gap-2 animate-scaleIn">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">✨</span>
-              <div className="flex flex-col text-right">
-                <span className="text-xs font-black text-amber-300">
+          <div className="mx-auto w-full max-w-md p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 border-2 border-purple-400 shadow-2xl backdrop-blur-md flex items-center justify-between gap-2 animate-scaleIn">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-lg sm:text-xl flex-shrink-0">✨</span>
+              <div className="flex flex-col text-right truncate">
+                <span className="text-[11px] sm:text-xs font-black text-amber-300 truncate">
                   {session.pendingAction?.type === 'PEEK_OWN' && t('game.action_peek_own_guide')}
                   {session.pendingAction?.type === 'PEEK_OTHER' && t('game.action_peek_other_guide')}
                   {session.pendingAction?.type === 'SWAP' && (selectedOwnCardIdx === null ? t('game.action_swap_guide_1') : t('game.action_swap_guide_2'))}
@@ -283,7 +283,7 @@ export const SoloTabletopView: React.FC = () => {
             </div>
             <button
               onClick={handleSkipAction}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all active:scale-95 whitespace-nowrap"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
             >
               {t('game.action_skip')}
             </button>
@@ -291,7 +291,7 @@ export const SoloTabletopView: React.FC = () => {
         )}
 
         {/* Bot Opponents Header Arc */}
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-1">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-4 mt-0.5 sm:mt-1">
           {session.players.slice(1).map((bot, bIdx) => {
             const isTurn = session.currentTurnIndex === bIdx + 1;
             const isTargetable = isPendingAction && (
@@ -305,25 +305,25 @@ export const SoloTabletopView: React.FC = () => {
             return (
               <div 
                 key={bot.id}
-                className={`glass-panel p-2.5 flex flex-col items-center transition-all ${
-                  isTurn ? 'border-amber-400 shadow-lg scale-105' : 'opacity-85'
+                className={`glass-panel p-1.5 sm:p-2.5 flex flex-col items-center rounded-xl sm:rounded-2xl transition-all ${
+                  isTurn ? 'border-amber-400 shadow-lg scale-102' : 'opacity-85'
                 } ${isTargetable ? 'ring-2 ring-purple-400 ring-offset-2 ring-offset-black/50 cursor-pointer animate-pulse' : ''}`}
                 style={{
                   boxShadow: isTurn ? '0 0 20px rgba(245, 158, 11, 0.4)' : undefined,
                   borderColor: isTurn ? '#F59E0B' : undefined
                 }}
               >
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="text-xl">{bot.avatar}</span>
-                  <span className="text-xs font-black text-white">{bot.name}</span>
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-base sm:text-xl">{bot.avatar}</span>
+                  <span className="text-[11px] sm:text-xs font-black text-white max-w-[80px] sm:max-w-[100px] truncate">{bot.name}</span>
                   {bot.hasCalledSkru && (
-                    <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black tracking-wider animate-pulse">
+                    <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.2 rounded font-black tracking-wider animate-pulse">
                       SKRU!
                     </span>
                   )}
                   {bot.isFrozen && <span className="text-xs">❄️</span>}
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 scale-75 origin-top">
+                <div className="grid grid-cols-2 gap-1 scale-75 sm:scale-85 md:scale-100 origin-top">
                   {bot.hand.map((c, cIdx) => (
                     <CardView
                       key={c.id}
@@ -348,21 +348,21 @@ export const SoloTabletopView: React.FC = () => {
 
       {/* Match Slap Toast Feedback Overlay */}
       {slapToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-scaleIn px-5 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2 border-2 max-w-sm text-center font-black text-xs sm:text-sm"
+        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 animate-scaleIn px-4 sm:px-5 py-2 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2 border-2 max-w-xs sm:max-w-sm text-center font-black text-xs sm:text-sm"
           style={{
             background: slapToast.isMatch ? 'rgba(5, 150, 105, 0.95)' : 'rgba(220, 38, 38, 0.95)',
             borderColor: slapToast.isMatch ? '#34D399' : '#F87171',
             color: '#FFFFFF'
           }}
         >
-          {slapToast.isMatch ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          {slapToast.isMatch ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
           <span>{language === 'ar' ? slapToast.messageAr : slapToast.messageEn}</span>
         </div>
       )}
 
       {/* Center Table: Draw Pile & Discard Pile on Casino Felt */}
-      <div className="my-auto flex flex-col items-center justify-center gap-4 z-10 py-2">
-        <div className="flex items-center justify-center gap-8 sm:gap-14">
+      <div className="my-auto flex flex-col items-center justify-center gap-2 sm:gap-3 z-10 py-1 sm:py-2">
+        <div className="flex items-center justify-center gap-5 sm:gap-12">
           {/* Draw Pile */}
           <div 
             onClick={() => handleDraw('DRAW_PILE')}
@@ -373,15 +373,15 @@ export const SoloTabletopView: React.FC = () => {
             <div className="card-slot flex items-center justify-center relative">
               <div className="card-3d">
                 <div className="card-face card-back flex flex-col items-center justify-center">
-                  <Layers size={22} className="text-amber-300 mb-1" />
-                  <span className="text-sm font-black text-amber-300 font-mono">
+                  <Layers size={22} className="text-amber-300 mb-0.5 sm:mb-1" />
+                  <span className="text-xs sm:text-sm font-black text-amber-300 font-mono">
                     {session.drawPile.length}
                   </span>
-                  <span className="text-[10px] font-bold text-amber-200/80">{language === 'ar' ? 'كارت' : 'Cards'}</span>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-amber-200/80">{language === 'ar' ? 'كارت' : 'Cards'}</span>
                 </div>
               </div>
             </div>
-            <span className="text-xs font-black mt-2 text-slate-200">{t('game.draw_deck')}</span>
+            <span className="text-[11px] sm:text-xs font-black mt-1 text-slate-200">{t('game.draw_deck')}</span>
           </div>
 
           {/* Discard Pile */}
@@ -410,13 +410,13 @@ export const SoloTabletopView: React.FC = () => {
                 <span className="text-xs font-bold text-slate-500">{t('game.discard_pile')}</span>
               )}
             </div>
-            <span className="text-xs font-black mt-2 text-slate-200">{t('game.discard_pile')}</span>
+            <span className="text-[11px] sm:text-xs font-black mt-1 text-slate-200">{t('game.discard_pile')}</span>
           </div>
         </div>
 
         {/* Drawn Card Overlay Banner */}
         {session.drawnCard && isHumanTurn && (
-          <div className="glass-panel p-3.5 flex items-center gap-4 animate-scaleIn border-2 border-amber-400 shadow-2xl w-full max-w-sm">
+          <div className="glass-panel p-2.5 sm:p-3.5 flex items-center gap-3 sm:gap-4 animate-scaleIn border-2 border-amber-400 shadow-2xl w-full max-w-xs sm:max-w-sm">
             <CardView
               id={session.drawnCard.id}
               value={session.drawnCard.value}
@@ -428,13 +428,13 @@ export const SoloTabletopView: React.FC = () => {
               canInteract={false}
               lang={language}
             />
-            <div className="flex flex-col gap-2 flex-1">
-              <span className="text-xs font-black text-amber-300">
-                {language === 'ar' ? 'اختر كارت من يدك لتبديله، أو ارمه لتفعيل قدرته:' : 'Tap a hand card to swap, or discard to activate power:'}
+            <div className="flex flex-col gap-1.5 sm:gap-2 flex-1 min-w-0">
+              <span className="text-[11px] sm:text-xs font-black text-amber-300">
+                {language === 'ar' ? 'اختر كارت لتبديله، أو ارمه لتفعيل قدرته:' : 'Tap hand card to swap, or discard:'}
               </span>
               <button
                 onClick={handleDiscard}
-                className="py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs shadow-lg transition-transform active:scale-95"
+                className="py-1.5 sm:py-2 px-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs shadow-lg transition-transform active:scale-95"
               >
                 {t('game.discard_card')}
               </button>
@@ -483,7 +483,7 @@ export const SoloTabletopView: React.FC = () => {
                         }
                       }}
                       disabled={selectedOwnCardIdx === null}
-                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
+                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
                     >
                       {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
                     </button>
@@ -493,7 +493,7 @@ export const SoloTabletopView: React.FC = () => {
                         setEphemeralPeek(null);
                         forceUpdate();
                       }}
-                      className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
+                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
                     >
                       {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
                     </button>
@@ -510,18 +510,18 @@ export const SoloTabletopView: React.FC = () => {
       </div>
 
       {/* Bottom Area: Human Player Hand (2x2 Grid with Luxury Card Slots) */}
-      <div className="w-full px-4 pb-4 flex flex-col items-center gap-3 z-20 max-w-lg mx-auto">
+      <div className="w-full flex flex-col items-center gap-2 sm:gap-3 z-20 max-w-md mx-auto">
         <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-xs font-black text-amber-300">{language === 'ar' ? 'أنت (بطل الطاولة)' : 'You (Champion)'}</span>
+          <span className="text-[11px] sm:text-xs font-black text-amber-300">{language === 'ar' ? 'أنت (بطل الطاولة)' : 'You (Champion)'}</span>
           {isHumanTurn && !session.isRoundOver && (
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold animate-pulse">
+            <span className="text-[9px] sm:text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.2 rounded-full font-bold animate-pulse">
               {language === 'ar' ? 'دورك للعب الآن 🎲' : 'Your Turn 🎲'}
             </span>
           )}
         </div>
 
         {/* 2x2 Hand Grid */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-5 p-3 sm:p-4 rounded-3xl bg-black/45 border-2 border-emerald-500/30 backdrop-blur-lg shadow-2xl">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3.5 p-2 sm:p-3 rounded-2xl bg-black/45 border-2 border-emerald-500/30 backdrop-blur-lg shadow-2xl">
           {humanPlayer.hand.map((c, idx) => {
             const isBottomTwoInitial = initialPeekTimer > 0 && idx >= 2;
             const isCardFaceUp = c.isFaceUp || session.isRoundOver || isBottomTwoInitial;
@@ -529,7 +529,7 @@ export const SoloTabletopView: React.FC = () => {
 
             return (
               <div key={c.id || idx} className="relative flex flex-col items-center">
-                <span className={`absolute -top-2 left-2 z-20 w-5 h-5 rounded-full border text-[10px] font-black flex items-center justify-center pointer-events-none ${
+                <span className={`absolute -top-1.5 -left-1.5 z-20 w-4 h-4 sm:w-5 sm:h-5 rounded-full border text-[9px] sm:text-[10px] font-black flex items-center justify-center pointer-events-none ${
                   isBottomTwoInitial 
                     ? 'bg-amber-400 text-black border-amber-300 animate-bounce' 
                     : 'bg-black/80 border-white/20 text-white'
@@ -556,21 +556,21 @@ export const SoloTabletopView: React.FC = () => {
         </div>
 
         {/* Controls Bar: Match Slap, Call Skru!, Reset */}
-        <div className="flex flex-wrap items-center justify-center gap-2 w-full max-w-lg">
+        <div className="w-full max-w-sm sm:max-w-md mx-auto flex items-stretch justify-center gap-1.5 sm:gap-2 px-1 sm:px-2">
           {/* Match Slap Button */}
           <button
             onClick={handleSlap}
             disabled={selectedOwnCardIdx === null || session.discardPile.length === 0}
-            className={`flex-1 min-w-[120px] py-3 px-3 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-lg ${
+            className={`flex-1 min-w-0 py-2.5 px-2 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1 transition-all shadow-lg ${
               selectedOwnCardIdx !== null && session.discardPile.length > 0
                 ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white active:scale-95 shadow-blue-900/40 hover:brightness-110 border-2 border-blue-300 animate-pulse' 
                 : 'bg-black/30 text-slate-500 border border-white/10 cursor-not-allowed'
             }`}
           >
-            <Sparkles size={16} />
-            <span>
+            <Sparkles size={15} className="flex-shrink-0" />
+            <span className="truncate">
               {selectedOwnCardIdx !== null && topDiscard 
-                ? (language === 'ar' ? `تشابه مع (${topDiscard.value})` : `Match (${topDiscard.value})`) 
+                ? (language === 'ar' ? `تشابه (${topDiscard.value})` : `Match (${topDiscard.value})`) 
                 : t('game.match_slap')}
             </span>
           </button>
@@ -579,20 +579,20 @@ export const SoloTabletopView: React.FC = () => {
           <button
             onClick={handleSkru}
             disabled={!isHumanTurn || session.drawnCard !== null || session.skruCallerIndex !== null || isPendingAction}
-            className={`btn-skru flex-1 min-w-[120px] py-3 px-4 ${
+            className={`btn-skru flex-1 min-w-0 py-2.5 px-2 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1 text-xs sm:text-sm ${
               (!isHumanTurn || session.drawnCard !== null || session.skruCallerIndex !== null || isPendingAction)
                 ? 'opacity-40 cursor-not-allowed filter grayscale'
                 : ''
             }`}
           >
-            <Flame size={18} />
-            <span>{t('game.call_skru')}</span>
+            <Flame size={16} className="flex-shrink-0" />
+            <span className="truncate">{t('game.call_skru')}</span>
           </button>
 
           {/* Reset / New Bot Match */}
           <button
             onClick={() => resetMatch()}
-            className="p-3 rounded-2xl bg-white/10 text-white border border-white/10 hover:bg-white/20 transition-all shadow"
+            className="w-10 h-10 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center rounded-xl sm:rounded-2xl bg-white/10 text-white border border-white/10 hover:bg-white/20 active:scale-95 transition-all shadow"
             title="Reset Game"
           >
             <RotateCcw size={18} />
@@ -600,10 +600,10 @@ export const SoloTabletopView: React.FC = () => {
         </div>
 
         {/* Match Slap Helper Hint */}
-        <span className="text-[11px] text-slate-400 text-center max-w-xs">
+        <span className="text-[10px] sm:text-[11px] text-slate-400 text-center max-w-xs px-2 truncate">
           {language === 'ar' 
-            ? '💡 للتشابه: اضغط على كارت من يدك أولاً ثم اضغط تشابه أو على كومة الأرض للتخلص منه.' 
-            : '💡 Match Slap: Select your hand card then tap Match Slap or the discard pile!'}
+            ? '💡 للتشابه: اضغط على كارتك أولاً ثم اضغط تشابه للتخلص منه.' 
+            : '💡 Match Slap: Tap your hand card first then tap Match!'}
         </span>
       </div>
 

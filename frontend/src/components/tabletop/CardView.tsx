@@ -121,22 +121,22 @@ export const CardView: React.FC<CardProps> = ({
           <div className="flex items-center justify-between w-full">
             <div className="flex flex-col items-center">
               <span 
-                className="text-sm sm:text-base font-black leading-none drop-shadow-sm font-mono"
+                className="text-xs sm:text-sm md:text-base font-black leading-none drop-shadow-sm font-mono"
                 style={{ color: theme.text }}
               >
                 {value !== undefined ? (value < 0 ? `${value}` : value) : '?'}
               </span>
             </div>
-            <div>{renderActionIcon(14)}</div>
+            <div>{renderActionIcon(12)}</div>
           </div>
 
           {/* Center Card Content */}
           <div 
-            className="flex flex-col items-center justify-center my-auto text-center w-full rounded-xl py-1.5"
+            className="flex flex-col items-center justify-center my-auto text-center w-full rounded-lg sm:rounded-xl py-0.5 sm:py-1.5"
             style={{ background: theme.bg }}
           >
             <span 
-              className="text-3xl sm:text-4xl font-black tracking-tight drop-shadow font-mono"
+              className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight drop-shadow font-mono leading-none"
               style={{ color: theme.text }}
             >
               {value !== undefined ? value : '?'}
@@ -145,7 +145,7 @@ export const CardView: React.FC<CardProps> = ({
             {/* Action Label Pill */}
             {action !== 'NONE' && (
               <span 
-                className="text-[10px] font-extrabold mt-1 text-white bg-black/60 px-2 py-0.5 rounded-full border border-white/20 tracking-tight"
+                className="text-[8px] sm:text-[10px] font-extrabold mt-0.5 sm:mt-1 text-white bg-black/75 px-1 sm:px-2 py-0.2 sm:py-0.5 rounded-full border border-white/20 tracking-tight truncate max-w-[95%]"
               >
                 {lang === 'ar' ? labelAr : labelEn}
               </span>
@@ -156,13 +156,13 @@ export const CardView: React.FC<CardProps> = ({
           <div className="flex items-center justify-between w-full rotate-180">
             <div className="flex flex-col items-center">
               <span 
-                className="text-sm sm:text-base font-black leading-none font-mono"
+                className="text-xs sm:text-sm md:text-base font-black leading-none font-mono"
                 style={{ color: theme.text }}
               >
                 {value !== undefined ? (value < 0 ? `${value}` : value) : '?'}
               </span>
             </div>
-            <div>{renderActionIcon(14)}</div>
+            <div>{renderActionIcon(12)}</div>
           </div>
         </div>
       </div>

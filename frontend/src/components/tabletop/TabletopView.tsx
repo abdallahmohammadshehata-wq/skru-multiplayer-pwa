@@ -183,7 +183,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
   };
 
   return (
-    <div className="casino-table w-full min-h-screen flex flex-col justify-between pb-24 md:pb-6 px-3 sm:px-6 pt-3 relative overflow-x-hidden">
+    <div className="casino-table w-full min-h-[100dvh] flex flex-col justify-between pb-3 sm:pb-6 px-2 sm:px-4 pt-2 sm:pt-3 relative overflow-x-hidden">
       {/* Floating Reaction Emojis Overlay */}
       {emojiReactions.map(er => (
         <div 
@@ -199,35 +199,35 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
       ))}
 
       {/* TOP SECTION: Opponents Arc & Status Announcements */}
-      <div className="w-full flex flex-col items-center gap-2.5 z-20">
+      <div className="w-full flex flex-col items-center gap-1.5 sm:gap-2.5 z-20">
         {/* Banner notification / last action log */}
         {gameState.lastActionLog && (
-          <div className="px-4 py-1.5 rounded-full bg-black/60 border border-amber-400/30 text-xs font-black text-amber-300 shadow-lg backdrop-blur-md max-w-lg text-center">
+          <div className="px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-black/60 border border-amber-400/30 text-[11px] sm:text-xs font-black text-amber-300 shadow-lg backdrop-blur-md max-w-lg text-center truncate">
             {language === 'ar' ? gameState.lastActionLog.ar : gameState.lastActionLog.en}
           </div>
         )}
 
         {/* Initial peek timer warning banner */}
         {gameState.status === 'INITIAL_PEEK' && (
-          <div className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 text-black font-black text-sm shadow-xl animate-pulse text-center border-2 border-white/40">
+          <div className="px-4 sm:px-6 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 text-black font-black text-xs sm:text-sm shadow-xl animate-pulse text-center border-2 border-white/40">
             👀 {t('game.initial_peek_banner')} ({gameState.initialPeekSecondsRemaining}s)
           </div>
         )}
 
         {/* Skru Alert Banner */}
         {gameState.skruCallerId && (
-          <div className="px-6 py-2 rounded-2xl bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white font-black text-sm shadow-2xl animate-bounce text-center border-2 border-red-300">
+          <div className="px-4 sm:px-6 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white font-black text-xs sm:text-sm shadow-2xl animate-bounce text-center border-2 border-red-300">
             ⚡ {t('game.call_skru')} ({gameState.finalTurnsRemaining} {language === 'ar' ? 'أدوار متبقية' : 'turns remaining'})
           </div>
         )}
 
         {/* Action Pending Guidance Banner */}
         {isActionPending && (
-          <div className="w-full max-w-md p-3 rounded-2xl bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 border-2 border-purple-400 shadow-2xl backdrop-blur-md flex items-center justify-between gap-2 animate-scaleIn">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">✨</span>
-              <div className="flex flex-col text-right">
-                <span className="text-xs font-black text-amber-300">
+          <div className="w-full max-w-md p-2.5 sm:p-3 rounded-2xl bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 border-2 border-purple-400 shadow-2xl backdrop-blur-md flex items-center justify-between gap-2 animate-scaleIn">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-lg sm:text-xl flex-shrink-0">✨</span>
+              <div className="flex flex-col text-right truncate">
+                <span className="text-[11px] sm:text-xs font-black text-amber-300 truncate">
                   {gameState.pendingActionSummary?.type === 'PEEK_OWN' && t('game.action_peek_own_guide')}
                   {gameState.pendingActionSummary?.type === 'PEEK_OTHER' && t('game.action_peek_other_guide')}
                   {gameState.pendingActionSummary?.type === 'SWAP' && (selectedOwnCardIdx === null ? t('game.action_swap_guide_1') : t('game.action_swap_guide_2'))}
@@ -239,7 +239,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             </div>
             <button
               onClick={handleSkipAction}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all active:scale-95 whitespace-nowrap"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
             >
               {t('game.action_skip')}
             </button>
@@ -247,7 +247,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
         )}
 
         {/* Opponents Hands (Perimeter Arc) */}
-        <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 mt-1 w-full max-w-4xl">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3 mt-0.5 sm:mt-1 w-full max-w-4xl">
           {opponents.map(opp => {
             const isTurn = gameState.currentTurnPlayerId === opp.id;
             const isTargetable = isActionPending && (
@@ -261,18 +261,18 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             return (
               <div 
                 key={opp.id}
-                className={`flex flex-col items-center p-2 sm:p-2.5 rounded-2xl transition-all ${
+                className={`flex flex-col items-center p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all ${
                   isTurn 
-                    ? 'bg-amber-500/25 border-2 border-amber-400 shadow-xl shadow-amber-500/20 scale-105' 
+                    ? 'bg-amber-500/25 border-2 border-amber-400 shadow-xl shadow-amber-500/20 scale-102' 
                     : 'bg-black/35 border border-white/10'
                 } ${isTargetable ? 'ring-2 ring-purple-400 ring-offset-2 ring-offset-black/50 cursor-pointer animate-pulse' : ''}`}
               >
                 {/* Opponent Badge */}
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="text-xl sm:text-2xl">{opp.avatar}</span>
-                  <span className="text-xs font-black text-white max-w-[90px] truncate">{opp.name}</span>
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-base sm:text-xl">{opp.avatar}</span>
+                  <span className="text-[11px] sm:text-xs font-black text-white max-w-[80px] sm:max-w-[100px] truncate">{opp.name}</span>
                   {opp.hasCalledSkru && (
-                    <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                    <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.2 rounded-full font-black animate-pulse">
                       SKRU
                     </span>
                   )}
@@ -280,7 +280,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                 </div>
 
                 {/* Opponent Mini Cards Grid */}
-                <div className="grid grid-cols-2 gap-1 scale-90 sm:scale-100">
+                <div className="grid grid-cols-2 gap-1 scale-75 sm:scale-85 md:scale-100 origin-top">
                   {opp.hand.map((c, idx) => (
                     <CardView
                       key={c.id || idx}
@@ -305,15 +305,15 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
       </div>
 
       {/* CENTER TABLE: Turn Indicator, Draw Pile & Discard Pile */}
-      <div className="flex flex-col items-center justify-center gap-3 my-4 z-10 w-full max-w-lg mx-auto">
+      <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 my-1 sm:my-3 z-10 w-full max-w-lg mx-auto">
         {/* Turn Countdown & Player Status */}
-        <div className="flex flex-col items-center gap-1.5 w-full max-w-xs px-2">
+        <div className="flex flex-col items-center gap-1 w-full max-w-[260px] sm:max-w-xs px-2">
           <div className="flex items-center justify-between w-full text-xs font-black">
-            <span className={isMyTurn ? 'text-amber-400 animate-pulse text-sm' : 'text-slate-300'}>
+            <span className={isMyTurn ? 'text-amber-400 animate-pulse text-xs sm:text-sm' : 'text-slate-300 text-xs'}>
               {isMyTurn ? `✨ ${t('game.your_turn')} ✨` : t('game.turn_of', { name: gameState.players.find(p => p.id === gameState.currentTurnPlayerId)?.name || '' })}
             </span>
             {gameState.turnTimer > 0 && (
-              <span className={`font-mono text-sm font-black px-2 py-0.5 rounded-full bg-black/40 border border-white/10 ${gameState.turnSecondsRemaining <= 5 ? 'text-red-400 animate-ping' : 'text-amber-300'}`}>
+              <span className={`font-mono text-xs sm:text-sm font-black px-2 py-0.2 rounded-full bg-black/40 border border-white/10 ${gameState.turnSecondsRemaining <= 5 ? 'text-red-400 animate-ping' : 'text-amber-300'}`}>
                 {gameState.turnSecondsRemaining}s
               </span>
             )}
@@ -331,7 +331,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
         </div>
 
         {/* The Card Decks (Draw Pile vs Discard Pile) */}
-        <div className="flex items-center justify-center gap-8 sm:gap-14 my-1">
+        <div className="flex items-center justify-center gap-5 sm:gap-12 my-0.5">
           {/* DRAW PILE */}
           <div 
             onClick={() => {
@@ -349,18 +349,18 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           >
             <div className="relative">
               {/* Stack depth visual illusion */}
-              <div className="absolute inset-0 bg-[#022C22] rounded-xl translate-x-2 translate-y-2 opacity-70 shadow-lg" />
-              <div className="absolute inset-0 bg-[#044E3B] rounded-xl translate-x-1 translate-y-1 opacity-80" />
+              <div className="absolute inset-0 bg-[#022C22] rounded-xl translate-x-1.5 translate-y-1.5 opacity-70 shadow-lg" />
+              <div className="absolute inset-0 bg-[#044E3B] rounded-xl translate-x-0.5 translate-y-0.5 opacity-80" />
               <div className="card-3d">
                 <div className="card-face card-back flex flex-col items-center justify-center">
-                  <Layers size={26} className="text-amber-300 mb-1" />
-                  <span className="text-sm font-black text-amber-200 font-mono">
+                  <Layers size={22} className="text-amber-300 mb-0.5 sm:mb-1" />
+                  <span className="text-xs sm:text-sm font-black text-amber-200 font-mono">
                     {gameState.drawPileCount}
                   </span>
                 </div>
               </div>
             </div>
-            <span className="text-xs font-black mt-2 text-slate-200">
+            <span className="text-[11px] sm:text-xs font-black mt-1 text-slate-200">
               {t('game.draw_deck')}
             </span>
           </div>
@@ -401,7 +401,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                 <span className="text-xs font-bold text-slate-400">{language === 'ar' ? 'فارغ' : 'Empty'}</span>
               </div>
             )}
-            <span className="text-xs font-black mt-2 text-slate-200">
+            <span className="text-[11px] sm:text-xs font-black mt-1 text-slate-200">
               {t('game.discard_pile')}
             </span>
           </div>
@@ -409,7 +409,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
 
         {/* DRAWN CARD MODAL / NOTIFICATION */}
         {gameState.drawnCardForCurrentPlayer && isMyTurn && (
-          <div className="glass-panel p-3.5 flex items-center gap-4 border-2 border-amber-400 shadow-2xl animate-scaleIn w-full max-w-sm">
+          <div className="glass-panel p-2.5 sm:p-3.5 flex items-center gap-3 sm:gap-4 border-2 border-amber-400 shadow-2xl animate-scaleIn w-full max-w-xs sm:max-w-sm">
             <CardView
               id={gameState.drawnCardForCurrentPlayer.id}
               value={gameState.drawnCardForCurrentPlayer.value}
@@ -421,13 +421,13 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
               canInteract={false}
               lang={language}
             />
-            <div className="flex flex-col gap-2 flex-1">
-              <span className="text-xs font-black text-amber-300">
-                {language === 'ar' ? 'اختر كارت من يدك لتبديله، أو ارمه لتفعيل قدرته:' : 'Tap a hand card to swap, or discard to activate power:'}
+            <div className="flex flex-col gap-1.5 sm:gap-2 flex-1 min-w-0">
+              <span className="text-[11px] sm:text-xs font-black text-amber-300">
+                {language === 'ar' ? 'اختر كارت لتبديله، أو ارمه لتفعيل قدرته:' : 'Tap hand card to swap, or discard:'}
               </span>
               <button
                 onClick={() => { sound.playCardSlide(); onDiscardCard(true); }}
-                className="py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs shadow-lg transition-transform active:scale-95"
+                className="py-1.5 sm:py-2 px-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs shadow-lg transition-transform active:scale-95"
               >
                 {t('game.discard_card')}
               </button>
@@ -476,13 +476,13 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                         }
                       }}
                       disabled={selectedOwnCardIdx === null}
-                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
+                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
                     >
                       {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
                     </button>
                     <button
                       onClick={() => onExecuteAction({ chooseSwap: false, skip: true })}
-                      className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
+                      className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
                     >
                       {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
                     </button>
@@ -495,22 +495,22 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
       </div>
 
       {/* BOTTOM THUMB ZONE: Player's Hand (2x2 Grid) & Tactical Controls */}
-      <div className="w-full flex flex-col items-center gap-3 z-20 max-w-lg mx-auto">
+      <div className="w-full flex flex-col items-center gap-2 sm:gap-3 z-20 max-w-md mx-auto">
         {myPlayer && (
-          <div className="flex flex-col items-center gap-1.5 w-full">
-            <span className="text-xs font-black text-amber-300 drop-shadow">
+          <div className="flex flex-col items-center gap-1 w-full">
+            <span className="text-[11px] sm:text-xs font-black text-amber-300 drop-shadow">
               {language === 'ar' ? 'أوراقك (اضغط لتحديد الكارت):' : 'Your Hand (Tap to select):'}
             </span>
             
             {/* 2x2 Dedicated Card Table Recesses */}
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 p-3 rounded-2xl bg-black/45 border-2 border-emerald-500/30 backdrop-blur-lg shadow-2xl">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3.5 p-2 sm:p-3 rounded-2xl bg-black/45 border-2 border-emerald-500/30 backdrop-blur-lg shadow-2xl">
               {myPlayer.hand.map((card, idx) => {
                 const isBottomTwoInitial = initialPeekTimer > 0 && (idx === 2 || idx === 3);
                 const isCardFaceUp = card.isFaceUp || isRoundOver || isBottomTwoInitial;
                 const isTargetableForAction = isActionPending && gameState.pendingActionSummary?.type === 'PEEK_OWN';
 
                 return (
-                  <div key={card.id || idx} className="relative">
+                  <div key={card.id || idx} className="relative flex flex-col items-center">
                     <CardView
                       id={card.id}
                       value={card.value}
@@ -523,7 +523,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                       onClick={() => handleOwnCardClick(idx)}
                       lang={language}
                     />
-                    <span className={`absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full font-black text-[10px] flex items-center justify-center border ${
+                    <span className={`absolute -top-1.5 -left-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full font-black text-[9px] sm:text-[10px] flex items-center justify-center border ${
                       isBottomTwoInitial 
                         ? 'bg-amber-400 text-black border-amber-300 animate-bounce' 
                         : 'bg-black/80 border-white/20 text-white'
@@ -538,21 +538,21 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
         )}
 
         {/* Tactical Actions (Slap, Skru!, Chat, Scores) */}
-        <div className="flex items-center justify-center gap-2 w-full px-2">
+        <div className="w-full max-w-sm sm:max-w-md mx-auto flex items-stretch justify-center gap-1.5 sm:gap-2 px-1 sm:px-2">
           {/* Match Slap button */}
           <button
             onClick={handleSlap}
             disabled={selectedOwnCardIdx === null || !gameState.topDiscard}
-            className={`flex-1 py-3 px-3 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-lg ${
+            className={`flex-1 min-w-0 py-2.5 px-2 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1 transition-all shadow-lg ${
               selectedOwnCardIdx !== null && gameState.topDiscard
                 ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white active:scale-95 shadow-blue-900/40 hover:brightness-110 border-2 border-blue-300 animate-pulse' 
                 : 'bg-black/30 text-slate-500 border border-white/10 cursor-not-allowed'
             }`}
           >
-            <Sparkles size={16} />
-            <span>
+            <Sparkles size={15} className="flex-shrink-0" />
+            <span className="truncate">
               {selectedOwnCardIdx !== null && gameState.topDiscard 
-                ? (language === 'ar' ? `تشابه مع (${gameState.topDiscard.value})` : `Match (${gameState.topDiscard.value})`) 
+                ? (language === 'ar' ? `تشابه (${gameState.topDiscard.value})` : `Match (${gameState.topDiscard.value})`) 
                 : t('game.match_slap')}
             </span>
           </button>
@@ -561,20 +561,20 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           <button
             onClick={handleSkru}
             disabled={!isMyTurn || gameState.hasDrawnCard || gameState.skruCallerId !== null || isActionPending}
-            className={`btn-skru flex-1 py-3 px-4 ${
+            className={`btn-skru flex-1 min-w-0 py-2.5 px-2 rounded-xl sm:rounded-2xl flex items-center justify-center gap-1 text-xs sm:text-sm ${
               (!isMyTurn || gameState.hasDrawnCard || gameState.skruCallerId !== null || isActionPending)
                 ? 'opacity-40 cursor-not-allowed filter grayscale'
                 : ''
             }`}
           >
-            <Flame size={20} />
-            <span>{t('game.call_skru')}</span>
+            <Flame size={16} className="flex-shrink-0" />
+            <span className="truncate">{t('game.call_skru')}</span>
           </button>
 
           {/* Scoreboard Drawer Button */}
           <button
             onClick={() => setActiveSheet(activeSheet === 'SCOREBOARD' ? 'NONE' : 'SCOREBOARD')}
-            className="p-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/15 active:scale-95 transition-all shadow"
+            className="w-10 h-10 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center rounded-xl sm:rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/15 active:scale-95 transition-all shadow"
             title={language === 'ar' ? 'النتائج' : 'Scoreboard'}
           >
             <Award size={18} className="text-amber-400" />
@@ -583,7 +583,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           {/* Social Chat Button */}
           <button
             onClick={() => setActiveSheet(activeSheet === 'CHAT' ? 'NONE' : 'CHAT')}
-            className="p-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/15 active:scale-95 transition-all shadow relative"
+            className="w-10 h-10 sm:w-11 sm:h-11 flex-shrink-0 flex items-center justify-center rounded-xl sm:rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/15 active:scale-95 transition-all shadow relative"
             title={language === 'ar' ? 'الدردشة والتفاعلات' : 'Chat & Reactions'}
           >
             <MessageSquare size={18} className="text-emerald-400" />
@@ -594,20 +594,20 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
         </div>
 
         {/* Match Slap Helper Hint */}
-        <span className="text-[11px] text-slate-400 text-center max-w-xs">
+        <span className="text-[10px] sm:text-[11px] text-slate-400 text-center max-w-xs px-2 truncate">
           {language === 'ar' 
-            ? '💡 للتشابه: اضغط على كارت من يدك أولاً ثم اضغط تشابه أو على كومة الأرض للتخلص منه.' 
-            : '💡 Match Slap: Select your hand card then tap Match Slap or the discard pile!'}
+            ? '💡 للتشابه: اضغط على كارتك أولاً ثم اضغط تشابه للتخلص منه.' 
+            : '💡 Match Slap: Tap your hand card first then tap Match!'}
         </span>
 
         {/* Quick Emoji Reaction Bar */}
         {onSendEmoji && (
-          <div className="flex items-center justify-center gap-2 p-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md">
+          <div className="flex items-center justify-center gap-1.5 p-1 sm:p-1.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md">
             {['😂', '😱', '🤫', '💣', '👑', '🔥'].map(emoji => (
               <button
                 key={emoji}
                 onClick={() => { sound.playCardFlip(); onSendEmoji(emoji); }}
-                className="text-lg p-1.5 hover:scale-125 active:scale-90 transition-transform"
+                className="text-base sm:text-lg p-1 sm:p-1.5 hover:scale-125 active:scale-90 transition-transform"
               >
                 {emoji}
               </button>

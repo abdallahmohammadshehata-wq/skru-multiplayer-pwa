@@ -602,17 +602,27 @@ input, select, textarea {
   background: var(--btn-skru-bg);
   color: #FFFFFF;
   font-weight: 900;
-  font-size: 1.25rem;
-  padding: 0.9rem 2rem;
+  font-size: 0.95rem;
+  padding: 0.65rem 1rem;
   border-radius: var(--radius-full);
-  box-shadow: 0 0 25px rgba(239, 68, 68, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.3);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
+  gap: 0.4rem;
   animation: skruPulse 2s infinite;
   transition: transform var(--transition-fast);
   border: 2px solid rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .btn-skru {
+    font-size: 1.25rem;
+    padding: 0.9rem 2rem;
+    gap: 0.6rem;
+  }
 }
 
 .btn-skru:hover {
@@ -626,10 +636,10 @@ input, select, textarea {
 
 @keyframes skruPulse {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.6);
   }
   50% {
-    box-shadow: 0 0 35px rgba(239, 68, 68, 0.9), 0 0 0 8px rgba(239, 68, 68, 0.2);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.9), 0 0 0 6px rgba(239, 68, 68, 0.2);
   }
 }
 
@@ -653,33 +663,56 @@ input, select, textarea {
 
 /* ==========================================
    3D CARD ARCHITECTURE & ANIMATIONS
+   Responsive Scaling for Mobile, Tablet & Desktop
    ========================================== */
 .card-perspective-wrapper {
   perspective: 1200px;
   cursor: pointer;
   touch-action: manipulation;
   display: inline-block;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
+/* Base Mobile Card Dimensions (< 480px) */
 .card-3d {
-  width: 82px;
-  height: 120px;
-  border-radius: var(--radius-md);
+  width: 70px;
+  height: 104px;
+  border-radius: var(--radius-sm);
   position: relative;
   transform-style: preserve-3d;
   transition: transform var(--transition-spring), box-shadow var(--transition-normal);
   box-shadow: var(--card-shadow);
 }
 
+/* Small screen mobile (< 370px) */
+@media (max-width: 369px) {
+  .card-3d {
+    width: 62px;
+    height: 92px;
+  }
+}
+
+/* Phablet / Mid screens (480px - 639px) */
+@media (min-width: 480px) and (max-width: 639px) {
+  .card-3d {
+    width: 82px;
+    height: 120px;
+    border-radius: var(--radius-md);
+  }
+}
+
+/* Tablet & Desktop (>= 640px) */
 @media (min-width: 640px) {
   .card-3d {
     width: 96px;
     height: 140px;
+    border-radius: var(--radius-md);
   }
 }
 
 .card-3d:hover {
-  transform: translateY(-6px) scale(1.03);
+  transform: translateY(-4px) scale(1.02);
 }
 
 .card-3d.flipped {
@@ -687,12 +720,12 @@ input, select, textarea {
 }
 
 .card-3d.flipped:hover {
-  transform: rotateY(180deg) translateY(-6px) scale(1.03);
+  transform: rotateY(180deg) translateY(-4px) scale(1.02);
 }
 
 .card-3d.active-selection {
   box-shadow: var(--card-glow-active);
-  transform: translateY(-10px) scale(1.06);
+  transform: translateY(-8px) scale(1.05);
 }
 
 .card-face {
@@ -700,14 +733,26 @@ input, select, textarea {
   inset: 0;
   width: 100%;
   height: 100%;
-  border-radius: var(--radius-md);
+  border-radius: inherit;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: 6px 8px;
   overflow: hidden;
+}
+
+@media (max-width: 369px) {
+  .card-face {
+    padding: 4px 5px;
+  }
+}
+
+@media (min-width: 640px) {
+  .card-face {
+    padding: 8px 10px;
+  }
 }
 
 /* Card Back (Felt Pattern & Skru Gold Emboss) */
@@ -723,10 +768,17 @@ input, select, textarea {
 
 .card-back-pattern {
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   border: 1px dashed rgba(245, 158, 11, 0.35);
-  border-radius: 12px;
+  border-radius: 8px;
   pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .card-back-pattern {
+    inset: 4px;
+    border-radius: 12px;
+  }
 }
 
 /* Card Front */
@@ -748,9 +800,9 @@ input, select, textarea {
 
 /* Card Slots on Table */
 .card-slot {
-  width: 86px;
-  height: 124px;
-  border-radius: var(--radius-md);
+  width: 74px;
+  height: 108px;
+  border-radius: var(--radius-sm);
   border: 2px dashed rgba(245, 158, 11, 0.25);
   background: rgba(0, 0, 0, 0.15);
   display: flex;
@@ -759,10 +811,26 @@ input, select, textarea {
   transition: border-color var(--transition-fast);
 }
 
+@media (max-width: 369px) {
+  .card-slot {
+    width: 66px;
+    height: 96px;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 639px) {
+  .card-slot {
+    width: 86px;
+    height: 124px;
+    border-radius: var(--radius-md);
+  }
+}
+
 @media (min-width: 640px) {
   .card-slot {
     width: 100px;
     height: 144px;
+    border-radius: var(--radius-md);
   }
 }
 
