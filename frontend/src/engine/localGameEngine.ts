@@ -253,8 +253,17 @@ export class LocalGameSession {
     targetCardIndex?: number;
     chooseSwap?: boolean;
     myCardIndex?: number;
+    skip?: boolean;
   }): { success: boolean; revealedCard?: Card; message?: string } {
     if (!this.pendingAction) return { success: false, message: 'No pending action' };
+
+    if (payload.skip) {
+      const player = this.players[this.pendingAction.playerIndex];
+      this.addLog(`تخطى ${player.name} استخدام قدرة الكارت الخاص.`, `${player.name} skipped the special card action.`);
+      this.pendingAction = null;
+      this.advanceTurn();
+      return { success: true };
+    }
 
     const actionType = this.pendingAction.type;
     const player = this.players[this.pendingAction.playerIndex];
@@ -496,6 +505,13 @@ export class LocalGameSession {
       card.isFaceUp = true;
       this.discardPile.push(card);
       this.addLog(`🎉 تشابه صحيح بواسطة ${player.name} (قيمة ${card.value})! تخلص من كارت!`, `🎉 Correct match by ${player.name} (${card.value})!`);
+
+      if (player.hand.length === 0) {
+        this.addLog(`🏆 أنهى ${player.name} جميع أوراقه بنجاح!`, `🏆 ${player.name} finished all their cards!`);
+        this.concludeRound();
+        return { isMatch: true, message: 'Match drop success - player finished hand!', cardValue: card.value, topValue: top.value };
+      }
+
       if (this.onStateChange) this.onStateChange();
       return { isMatch: true, message: 'Match drop success!', cardValue: card.value, topValue: top.value };
     } else {
