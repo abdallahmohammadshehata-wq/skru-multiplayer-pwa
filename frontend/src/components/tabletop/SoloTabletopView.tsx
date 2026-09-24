@@ -21,6 +21,7 @@ export const SoloTabletopView: React.FC = () => {
 
   const [tick, setTick] = useState<number>(0);
   const [selectedOwnCardIdx, setSelectedOwnCardIdx] = useState<number | null>(null);
+  const [selectedOpponentTarget, setSelectedOpponentTarget] = useState<{ botIdx: number; cardIdx: number } | null>(null);
   const [opponentBotCount, setOpponentBotCount] = useState<number>(2);
   const [initialPeekTimer, setInitialPeekTimer] = useState<number>(6);
   const [turnSecondsRemaining, setTurnSecondsRemaining] = useState<number>(20);
@@ -126,6 +127,7 @@ export const SoloTabletopView: React.FC = () => {
     const newSess = new LocalGameSession(configs);
     setSession(newSess);
     setSelectedOwnCardIdx(null);
+    setSelectedOpponentTarget(null);
     setEphemeralPeek(null);
     setSlapToast(null);
   };
@@ -137,13 +139,13 @@ export const SoloTabletopView: React.FC = () => {
 
     // 1. If executing special action PEEK_OWN (7/8) or PEEK_ALL (كعب داير)
     if (isPendingAction && (session.pendingAction?.type === 'PEEK_OWN' || session.pendingAction?.type === 'PEEK_ALL')) {
-      const res = session.executeAction({ ownCardIndex: idx });
+      const res = session.executeAction({ ownCardIndex: idx, myCardIndex: idx });
       if (res.allRevealedCards) {
         setEphemeralPeek({
           allRevealedCards: res.allRevealedCards,
           title: language === 'ar' ? 'كعب داير (كروت جميع اللاعبين)' : 'Peek All (Table Cards)'
         });
-        setTimeout(() => setEphemeralPeek(null), 7000);
+        setTimeout(() => setEphemeralPeek(null), 8000);
       } else if (res.revealedCard) {
         setEphemeralPeek({
           card: res.revealedCard,
@@ -152,6 +154,20 @@ export const SoloTabletopView: React.FC = () => {
         setTimeout(() => setEphemeralPeek(null), 3500);
       }
       setSelectedOwnCardIdx(null);
+      setSelectedOpponentTarget(null);
+      forceUpdate();
+      return;
+    }
+
+    // If executing SWAP and opponent card was already selected
+    if (isPendingAction && session.pendingAction?.type === 'SWAP' && selectedOpponentTarget) {
+      session.executeAction({
+        myCardIndex: idx,
+        targetPlayerIndex: selectedOpponentTarget.botIdx + 1,
+        targetCardIndex: selectedOpponentTarget.cardIdx
+      });
+      setSelectedOwnCardIdx(null);
+      setSelectedOpponentTarget(null);
       forceUpdate();
       return;
     }
@@ -160,6 +176,7 @@ export const SoloTabletopView: React.FC = () => {
     if (session.drawnCard && isHumanTurn) {
       session.swap(idx);
       setSelectedOwnCardIdx(null);
+      setSelectedOpponentTarget(null);
       forceUpdate();
       return;
     }
@@ -187,19 +204,30 @@ export const SoloTabletopView: React.FC = () => {
         setTimeout(() => setEphemeralPeek(null), 3500);
       }
       forceUpdate();
-    } else if (action === 'SWAP') {
-      if (selectedOwnCardIdx === null) {
-        // Must select own card first
-        triggerHaptic('heavy');
-        return;
+    } else if (action === 'PEEK_ALL') {
+      const res = session.executeAction({ targetPlayerIndex, targetCardIndex: cardIdx });
+      if (res.allRevealedCards) {
+        setEphemeralPeek({
+          allRevealedCards: res.allRevealedCards,
+          title: language === 'ar' ? 'كعب داير (كروت جميع اللاعبين)' : 'Peek All (Table Cards)'
+        });
+        setTimeout(() => setEphemeralPeek(null), 8000);
       }
-      session.executeAction({
-        myCardIndex: selectedOwnCardIdx,
-        targetPlayerIndex,
-        targetCardIndex: cardIdx
-      });
-      setSelectedOwnCardIdx(null);
       forceUpdate();
+    } else if (action === 'SWAP') {
+      if (selectedOwnCardIdx !== null) {
+        session.executeAction({
+          myCardIndex: selectedOwnCardIdx,
+          targetPlayerIndex,
+          targetCardIndex: cardIdx
+        });
+        setSelectedOwnCardIdx(null);
+        setSelectedOpponentTarget(null);
+        forceUpdate();
+      } else {
+        setSelectedOpponentTarget({ botIdx, cardIdx });
+        forceUpdate();
+      }
     } else if (action === 'PEEK_AND_SWAP') {
       if (session.pendingAction?.stage === 'SELECT_TARGET') {
         const res = session.executeAction({ targetPlayerIndex, targetCardIndex: cardIdx });
@@ -322,8 +350,15 @@ export const SoloTabletopView: React.FC = () => {
                 <span className="text-[11px] sm:text-xs font-black text-amber-300 truncate">
                   {session.pendingAction?.type === 'PEEK_OWN' && t('game.action_peek_own_guide')}
                   {session.pendingAction?.type === 'PEEK_OTHER' && t('game.action_peek_other_guide')}
-                  {session.pendingAction?.type === 'SWAP' && (selectedOwnCardIdx === null ? t('game.action_swap_guide_1') : t('game.action_swap_guide_2'))}
+                  {session.pendingAction?.type === 'SWAP' && (
+                    selectedOwnCardIdx === null && !selectedOpponentTarget
+                      ? t('game.action_swap_guide_1')
+                      : (selectedOwnCardIdx !== null
+                          ? (language === 'ar' ? '🔄 تم تحديد كارتك! الآن اضغط على كارت الخصم للتبديل.' : '🔄 Hand card selected! Now tap opponent card to swap.')
+                          : (language === 'ar' ? '🔄 تم تحديد كارت الخصم! الآن اضغط على كارت من يدك لإتمام التبديل.' : '🔄 Opponent card selected! Now tap your hand card to swap.'))
+                  )}
                   {session.pendingAction?.type === 'PEEK_AND_SWAP' && t('game.action_peek_swap_guide')}
+                  {session.pendingAction?.type === 'PEEK_ALL' && (language === 'ar' ? '✨ كعب داير: اضغط على أي كارت لكشف كروت جميع اللاعبين!' : '✨ Peek All: Tap any card to reveal table cards!')}
                   {session.pendingAction?.type === 'FREEZE' && (language === 'ar' ? '❄️ اضغط على أي خصم لتجميده!' : '❄️ Tap any opponent to freeze them!')}
                   {session.pendingAction?.type === 'BOMB' && (language === 'ar' ? '💣 اضغط على أي خصم لرمي القنبلة عليه!' : '💣 Tap any opponent to bomb them!')}
                 </span>
@@ -345,7 +380,8 @@ export const SoloTabletopView: React.FC = () => {
             const isTargetable = isPendingAction && (
               session.pendingAction?.type === 'PEEK_OTHER' ||
               session.pendingAction?.type === 'PEEK_AND_SWAP' ||
-              (session.pendingAction?.type === 'SWAP' && selectedOwnCardIdx !== null) ||
+              session.pendingAction?.type === 'PEEK_ALL' ||
+              session.pendingAction?.type === 'SWAP' ||
               session.pendingAction?.type === 'FREEZE' ||
               session.pendingAction?.type === 'BOMB'
             );
@@ -382,6 +418,7 @@ export const SoloTabletopView: React.FC = () => {
                       labelEn={c.labelEn}
                       color={c.color as any}
                       isFaceUp={session.isRoundOver}
+                      isSelected={selectedOpponentTarget?.botIdx === bIdx && selectedOpponentTarget?.cardIdx === cIdx}
                       canInteract={isTargetable}
                       onClick={() => handleOpponentCardClick(bIdx, cIdx)}
                       lang={language}

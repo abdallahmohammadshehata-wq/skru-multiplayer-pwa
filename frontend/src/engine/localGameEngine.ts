@@ -406,7 +406,10 @@ export class LocalGameSession {
 
         this.players.forEach((opp, idx) => {
           if (idx !== this.pendingAction!.playerIndex && opp.hand.length > 0) {
-            const oppCardIdx = Math.floor(Math.random() * opp.hand.length);
+            let oppCardIdx = Math.floor(Math.random() * opp.hand.length);
+            if (payload.targetPlayerIndex === idx && payload.targetCardIndex !== undefined && opp.hand[payload.targetCardIndex]) {
+              oppCardIdx = payload.targetCardIndex;
+            }
             allRevealedCards.push({
               playerName: opp.name,
               avatar: opp.avatar,

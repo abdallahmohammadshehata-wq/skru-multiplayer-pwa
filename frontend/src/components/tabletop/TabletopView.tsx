@@ -123,7 +123,22 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
     triggerHaptic('light');
 
     if (isActionPending && (gameState.pendingActionSummary?.type === 'PEEK_OWN' || gameState.pendingActionSummary?.type === 'PEEK_ALL')) {
-      onExecuteAction({ ownCardIndex: idx });
+      onExecuteAction({ ownCardIndex: idx, myCardIndex: idx });
+      setSelectedOwnCardIdx(null);
+      return;
+    }
+
+    // If executing SWAP and opponent card was already selected:
+    if (isActionPending && gameState.pendingActionSummary?.type === 'SWAP' && selectedTargetPlayerId && selectedTargetCardIdx !== null) {
+      onExecuteAction({
+        myCardIndex: idx,
+        ownCardIndex: idx,
+        targetPlayerId: selectedTargetPlayerId,
+        targetCardIndex: selectedTargetCardIdx
+      });
+      setSelectedOwnCardIdx(null);
+      setSelectedTargetPlayerId(null);
+      setSelectedTargetCardIdx(null);
       return;
     }
 
@@ -146,19 +161,22 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
     const actionType = gameState.pendingActionSummary?.type;
     if (actionType === 'PEEK_OTHER') {
       onExecuteAction({ targetPlayerId: oppId, targetCardIndex: cardIdx });
+    } else if (actionType === 'PEEK_ALL') {
+      onExecuteAction({ targetPlayerId: oppId, targetCardIndex: cardIdx });
     } else if (actionType === 'SWAP') {
-      if (selectedOwnCardIdx === null) {
-        setSelectedTargetPlayerId(oppId);
-        setSelectedTargetCardIdx(cardIdx);
-      } else {
+      if (selectedOwnCardIdx !== null) {
         onExecuteAction({
           myCardIndex: selectedOwnCardIdx,
+          ownCardIndex: selectedOwnCardIdx,
           targetPlayerId: oppId,
           targetCardIndex: cardIdx
         });
         setSelectedOwnCardIdx(null);
         setSelectedTargetPlayerId(null);
         setSelectedTargetCardIdx(null);
+      } else {
+        setSelectedTargetPlayerId(oppId);
+        setSelectedTargetCardIdx(cardIdx);
       }
     } else if (actionType === 'PEEK_AND_SWAP') {
       setSelectedTargetPlayerId(oppId);
@@ -243,9 +261,15 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                 <span className="text-[11px] sm:text-xs font-black text-amber-300 truncate">
                   {gameState.pendingActionSummary?.type === 'PEEK_OWN' && t('game.action_peek_own_guide')}
                   {gameState.pendingActionSummary?.type === 'PEEK_OTHER' && t('game.action_peek_other_guide')}
-                  {gameState.pendingActionSummary?.type === 'SWAP' && (selectedOwnCardIdx === null ? t('game.action_swap_guide_1') : t('game.action_swap_guide_2'))}
+                  {gameState.pendingActionSummary?.type === 'SWAP' && (
+                    selectedOwnCardIdx === null && !selectedTargetPlayerId
+                      ? t('game.action_swap_guide_1')
+                      : (selectedOwnCardIdx !== null
+                          ? (language === 'ar' ? '🔄 تم تحديد كارتك! الآن اضغط على كارت الخصم للتبديل.' : '🔄 Hand card selected! Now tap opponent card to swap.')
+                          : (language === 'ar' ? '🔄 تم تحديد كارت الخصم! الآن اضغط على كارت من يدك لإتمام التبديل.' : '🔄 Opponent card selected! Now tap your hand card to swap.'))
+                  )}
                   {gameState.pendingActionSummary?.type === 'PEEK_AND_SWAP' && t('game.action_peek_swap_guide')}
-                  {gameState.pendingActionSummary?.type === 'PEEK_ALL' && (language === 'ar' ? '✨ كعب داير: اضغط على أي كارت من يدك لكشف كروت الطاولة!' : '✨ Peek All: Tap a hand card to reveal table cards!')}
+                  {gameState.pendingActionSummary?.type === 'PEEK_ALL' && (language === 'ar' ? '✨ كعب داير: اضغط على أي كارت لكشف كروت جميع اللاعبين!' : '✨ Peek All: Tap any card to reveal table cards!')}
                   {gameState.pendingActionSummary?.type === 'FREEZE' && (language === 'ar' ? '❄️ اضغط على أي خصم لتجميده!' : '❄️ Tap an opponent to freeze!')}
                   {gameState.pendingActionSummary?.type === 'BOMB' && (language === 'ar' ? '💣 اضغط على أي خصم لرمي القنبلة عليه!' : '💣 Tap an opponent to bomb!')}
                 </span>
@@ -267,7 +291,8 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             const isTargetable = isActionPending && (
               gameState.pendingActionSummary?.type === 'PEEK_OTHER' ||
               gameState.pendingActionSummary?.type === 'PEEK_AND_SWAP' ||
-              (gameState.pendingActionSummary?.type === 'SWAP' && selectedOwnCardIdx !== null) ||
+              gameState.pendingActionSummary?.type === 'PEEK_ALL' ||
+              gameState.pendingActionSummary?.type === 'SWAP' ||
               gameState.pendingActionSummary?.type === 'FREEZE' ||
               gameState.pendingActionSummary?.type === 'BOMB'
             );

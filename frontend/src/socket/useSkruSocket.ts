@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { SanitizedGameState, Card, GameVariant } from '../types';
+import { SanitizedGameState, Card, GameVariant, GameStatus } from '../types';
 import { LocalGameSession } from '../engine/localGameEngine';
 import { networkEngine, DebugInfo, normalizeRoomCode } from './networkEngine';
 
@@ -103,9 +103,20 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
 
     const currentP = session.players[session.currentTurnIndex];
 
+    const pendingAction = session.pendingAction ? {
+      type: session.pendingAction.type,
+      initiatorId: session.players[session.pendingAction.playerIndex]?.id || session.players[0].id,
+      expiresInSeconds: turnSecondsRemainingRef.current,
+      stage: session.pendingAction.stage || 'SELECT_TARGET'
+    } : null;
+
+    const gameStatus: GameStatus = session.pendingAction
+      ? 'ACTION_PENDING'
+      : (isGameOver ? 'GAME_OVER' : (isRoundOver ? 'ROUND_OVER' : 'PLAYING'));
+
     const state: SanitizedGameState = {
       roomCode: lobby.roomCode,
-      status: isGameOver ? 'GAME_OVER' : (isRoundOver ? 'ROUND_OVER' : 'PLAYING'),
+      status: gameStatus,
       variant: session.variant,
       pointsCap: session.pointsCap,
       turnTimer: 20,
@@ -119,6 +130,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
       drawnCardForCurrentPlayer: session.drawnCard,
       skruCallerId: session.skruCallerIndex !== null ? session.players[session.skruCallerIndex].id : null,
       finalTurnsRemaining: session.finalTurnsRemaining,
+      pendingActionSummary: pendingAction,
       roundNumber: session.roundNumber,
       lastActionLog: session.logs.length > 0 ? session.logs[session.logs.length - 1] : null,
       yourPlayerId: myId
