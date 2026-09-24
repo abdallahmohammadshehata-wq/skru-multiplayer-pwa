@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SanitizedGameState, Card, GameVariant } from '../types';
 import { LocalGameSession } from '../engine/localGameEngine';
-import { networkEngine } from './networkEngine';
+import { networkEngine, DebugInfo } from './networkEngine';
 
 export interface UseSkruSocketReturn {
   isConnected: boolean;
@@ -12,6 +12,7 @@ export interface UseSkruSocketReturn {
   emojiReactions: Array<{ id: string; emoji: string; senderName: string }>;
   isJoiningRoom: boolean;
   joinError: string | null;
+  networkDebug: DebugInfo | null;
   send: (event: string, payload: any) => void;
   clearPeekReveal: () => void;
   leaveRoom: () => void;
@@ -42,6 +43,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
 
   const [isJoiningRoom, setIsJoiningRoom] = useState<boolean>(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [networkDebug, setNetworkDebug] = useState<DebugInfo | null>(null);
 
   // Local in-browser host session refs for serverless PWA rooms
   const localSessionRef = useRef<LocalGameSession | null>(null);
@@ -128,10 +130,18 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
     }
   }, []);
 
+  // Subscribe to NetworkEngine debug status changes for UI display
+  useEffect(() => {
+    const unsub = networkEngine.onStatusChange(() => {
+      setNetworkDebug(networkEngine.getDebugInfo());
+    });
+    return unsub;
+  }, []);
+
   // Initialize BroadcastChannel for cross-tab multi-window sync
   useEffect(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-      const channel = new BroadcastChannel('skru_rooms_v2');
+      const channel = new BroadcastChannel('skru_rooms_v3');
       broadcastChannelRef.current = channel;
 
       channel.onmessage = (ev) => {
@@ -151,6 +161,34 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
           setTimeout(() => {
             setEmojiReactions(prev => prev.filter(e => e.id !== newEmoji.id));
           }, 2500);
+        } else if (type === 'JOIN_ROOM_REQUEST') {
+          // Host tab receives join request from another tab on same browser
+          const currentLobby = localLobbyRef.current;
+          if (currentLobby && currentLobby.roomCode === payload.roomCode) {
+            const newPlayer = {
+              id: payload.playerId,
+              name: payload.name || 'Player',
+              avatar: payload.avatar || '🦁',
+              team: payload.team,
+              connected: true,
+              isHost: false
+            };
+            const existingIdx = currentLobby.players.findIndex((p: any) => p.id === newPlayer.id);
+            let updatedPlayers;
+            if (existingIdx >= 0) {
+              updatedPlayers = [...currentLobby.players];
+              updatedPlayers[existingIdx] = newPlayer;
+            } else {
+              updatedPlayers = [...currentLobby.players, newPlayer];
+            }
+            const updatedLobby = { ...currentLobby, players: updatedPlayers };
+            localLobbyRef.current = updatedLobby;
+            setLobbyState(updatedLobby);
+            channel.postMessage({ type: 'LOBBY_STATE', payload: updatedLobby });
+            if (networkEngine.isHost) {
+              networkEngine.send('LOBBY_STATE', updatedLobby);
+            }
+          }
         }
       };
 
@@ -727,6 +765,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
     emojiReactions,
     isJoiningRoom,
     joinError,
+    networkDebug,
     send,
     clearPeekReveal,
     leaveRoom,

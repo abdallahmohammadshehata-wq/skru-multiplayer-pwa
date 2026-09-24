@@ -29,6 +29,7 @@ const MainApp: React.FC = () => {
     emojiReactions,
     isJoiningRoom,
     joinError,
+    networkDebug,
     send,
     clearPeekReveal,
     leaveRoom,
@@ -155,6 +156,7 @@ const MainApp: React.FC = () => {
                 isJoiningRoom={isJoiningRoom}
                 joinError={joinError}
                 onClearJoinError={clearJoinError}
+                networkDebug={networkDebug}
               />
             )}
           </>

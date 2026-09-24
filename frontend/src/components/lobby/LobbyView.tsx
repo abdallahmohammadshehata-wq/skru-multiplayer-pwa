@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Users, Crown, Copy, Check, Shield, Sparkles, Clock, ArrowRight, Play, UserPlus, Flame, Bot, Radio } from 'lucide-react';
+import { Users, Crown, Copy, Check, Shield, Sparkles, Clock, ArrowRight, Play, UserPlus, Flame, Bot, Radio, Wifi, WifiOff } from 'lucide-react';
 import { useTranslation } from '../../i18n/I18nContext';
 import { GameVariant } from '../../types';
 import { sound } from '../../utils/audio';
+import type { DebugInfo } from '../../socket/networkEngine';
 
 const AVATARS = ['🦁', '🦊', '🐯', '🐺', '🦅', '🐼', '👑', '🚀', '💎', '🎯', '⚡', '☕'];
 
@@ -18,6 +19,7 @@ interface LobbyViewProps {
   isJoiningRoom?: boolean;
   joinError?: string | null;
   onClearJoinError?: () => void;
+  networkDebug?: DebugInfo | null;
 }
 
 export const LobbyView: React.FC<LobbyViewProps> = ({
@@ -31,7 +33,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   myPlayerId,
   isJoiningRoom = false,
   joinError = null,
-  onClearJoinError
+  onClearJoinError,
+  networkDebug
 }) => {
   const { t, language } = useTranslation();
 
@@ -121,6 +124,20 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Network Status Indicator (visible in lobby waiting room) */}
+        {networkDebug && (
+          <div className={`flex items-center justify-center gap-2 text-[10px] font-bold px-3 py-1.5 rounded-full mx-auto ${
+            networkDebug.status === 'READY' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+            networkDebug.status === 'CONNECTED' || networkDebug.status === 'SUBSCRIBING' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+            networkDebug.status === 'ERROR' || networkDebug.status === 'DISCONNECTED' ? 'bg-red-500/15 text-red-400 border border-red-500/30' :
+            'bg-slate-500/15 text-slate-400 border border-slate-500/30'
+          }`}>
+            {networkDebug.status === 'READY' ? <Wifi size={12} /> : networkDebug.status === 'ERROR' ? <WifiOff size={12} /> : <Radio size={12} className="animate-pulse" />}
+            <span>{networkDebug.status} {networkDebug.status === 'READY' ? '✓' : ''}</span>
+            {networkDebug.messagesReceived > 0 && <span>| ↓{networkDebug.messagesReceived} ↑{networkDebug.messagesSent}</span>}
+          </div>
+        )}
 
         {/* Players Roster in Lobby */}
         <div className="glass-panel p-6 flex flex-col gap-4 border border-white/10 shadow-xl">
@@ -223,6 +240,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   // Lobby Home Screen (Join / Create Tabs)
   return (
     <div className="w-full max-w-xl mx-auto p-4 flex flex-col gap-4 relative">
+      {/* Network Debug Status */}
+      {networkDebug && networkDebug.status !== 'IDLE' && (
+        <div className={`flex items-center gap-2 text-[10px] font-bold px-3 py-1.5 rounded-xl ${
+          networkDebug.status === 'READY' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+          networkDebug.status === 'ERROR' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+          'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+        }`}>
+          {networkDebug.status === 'READY' ? <Wifi size={11} /> : networkDebug.status === 'ERROR' ? <WifiOff size={11} /> : <Radio size={11} className="animate-pulse" />}
+          <span className="opacity-80">{networkDebug.status}</span>
+          {networkDebug.error && <span className="text-red-300 truncate max-w-[200px]">| {networkDebug.error}</span>}
+        </div>
+      )}
       {/* Active Connecting Modal Overlay */}
       {isJoiningRoom && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
