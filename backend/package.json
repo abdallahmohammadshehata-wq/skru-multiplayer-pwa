@@ -1,0 +1,24 @@
+{
+  "name": "skru-backend",
+  "version": "1.0.0",
+  "description": "Authoritative Real-Time WebSocket Game Engine for Skru (سكرو) Card Game",
+  "main": "src/server.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc",
+    "test": "tsx --test tests/engine.test.js",
+    "test:multiplayer": "node tests/e2e_full_game_multiplayer.js",
+    "test:all": "tsx --test tests/engine.test.js && node tests/e2e_full_game_multiplayer.js && tsx ../frontend/src/tests/modes_2_and_3.test.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

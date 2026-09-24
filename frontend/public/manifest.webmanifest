@@ -1,0 +1,23 @@
+{
+  "name": "Skru Multiplayer - سكرو أونلاين",
+  "short_name": "Skru سكرو",
+  "description": "The Ultimate Online Multiplayer Skru (سكرو) Card Game & Digital Companion PWA",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#061E16",
+  "theme_color": "#0F5132",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["games", "card-games", "multiplayer"]
+}
