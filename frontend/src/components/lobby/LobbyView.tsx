@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Crown, Copy, Check, Shield, Sparkles, Clock, ArrowRight, Play, UserPlus } from 'lucide-react';
+import { Users, Crown, Copy, Check, Shield, Sparkles, Clock, ArrowRight, Play, UserPlus, Flame } from 'lucide-react';
 import { useTranslation } from '../../i18n/I18nContext';
 import { GameVariant } from '../../types';
 import { sound } from '../../utils/audio';
@@ -24,7 +24,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const { t, language } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<'JOIN' | 'CREATE'>('JOIN');
-  const [name, setName] = useState<string>(() => localStorage.getItem('skru_player_name') || 'سريع');
+  const [name, setName] = useState<string>(() => localStorage.getItem('skru_player_name') || 'الفرعون');
   const [avatar, setAvatar] = useState<string>(() => localStorage.getItem('skru_player_avatar') || '🦁');
   const [roomCodeInput, setRoomCodeInput] = useState<string>('');
   const [passcodeInput, setPasscodeInput] = useState<string>('');
@@ -80,104 +80,105 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     return (
       <div className="w-full max-w-2xl mx-auto p-4 flex flex-col gap-5">
         {/* Room Header Card */}
-        <div className="glass-panel p-6 text-center flex flex-col items-center relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500" />
-          
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
+        <div className="glass-panel p-6 text-center flex flex-col items-center relative overflow-hidden border-2 border-amber-400/30 shadow-2xl">
+          <span className="text-xs font-black text-amber-400 uppercase tracking-widest mb-1">
             {t('lobby.room_code')}
           </span>
           <div className="flex items-center gap-3">
-            <span className="text-4xl sm:text-5xl font-black text-amber-400 tracking-wider font-mono">
+            <span className="text-4xl sm:text-5xl font-black text-amber-400 tracking-wider font-mono drop-shadow">
               {lobbyState.roomCode}
             </span>
             <button
               onClick={copyRoomLink}
-              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
+              className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-all border border-white/15 active:scale-95 shadow"
               title={t('common.copy')}
             >
-              {copied ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
+              {copied ? <Check size={20} className="text-emerald-400" /> : <Copy size={20} />}
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
-              {t(`lobby.variant_${lobbyState.options?.variant.toLowerCase().split('_')[0]}`)}
+          <div className="flex items-center gap-3 mt-4 text-xs font-extrabold text-slate-300">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              {lobbyState.options?.variant}
             </span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
-              {lobbyState.options?.pointsCap} {t('game.score')}
+            <span className="px-3 py-1 rounded-full bg-black/40 border border-white/10">
+              {lobbyState.players.length} / {lobbyState.options?.maxPlayers} {t('lobby.players_count')}
             </span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/30">
-              {lobbyState.options?.turnTimer > 0 ? `${lobbyState.options.turnTimer}s` : t('lobby.unlimited')}
+            <span className="px-3 py-1 rounded-full bg-black/40 border border-white/10">
+              {lobbyState.options?.targetScore || lobbyState.options?.pointsCap} نقطة
             </span>
           </div>
         </div>
 
-        {/* Players Roster */}
-        <div className="glass-panel p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-extrabold text-base flex items-center gap-2 text-white">
-              <Users size={18} className="text-emerald-400" />
-              <span>{language === 'ar' ? 'قائمة اللاعبين' : 'Connected Players'}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-300">
-                {lobbyState.players?.length || 0} / {lobbyState.options?.maxPlayers || 4}
-              </span>
+        {/* Players Roster in Lobby */}
+        <div className="glass-panel p-6 flex flex-col gap-4 border border-white/10 shadow-xl">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <h3 className="font-black text-lg text-white flex items-center gap-2">
+              <Users size={20} className="text-emerald-400" />
+              <span>{t('lobby.connected_players')}</span>
             </h3>
+            <span className="text-xs font-bold text-slate-400">
+              {lobbyState.players.length} جاهزون
+            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {lobbyState.players?.map((p: any) => (
-              <div 
-                key={p.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-black/20 dark:bg-black/40 border border-white/5"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl p-1 rounded-lg bg-white/5 border border-white/10">
-                    {p.avatar}
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-white flex items-center gap-1.5">
-                      <span>{p.name}</span>
-                      {p.isHost && <Crown size={14} className="text-amber-400 fill-amber-400" />}
-                      {p.id === myPlayerId && (
-                        <span className="text-[10px] bg-emerald-500/30 text-emerald-300 px-1.5 py-0.2 rounded font-normal">
-                          {language === 'ar' ? 'أنت' : 'You'}
+            {lobbyState.players.map((p: any) => {
+              const isPlayerHost = p.id === lobbyState.hostId;
+              const isMe = p.id === myPlayerId;
+              return (
+                <div 
+                  key={p.id}
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
+                    isMe 
+                      ? 'bg-amber-500/15 border-amber-400/50 shadow-md' 
+                      : 'bg-black/30 border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl p-1 bg-white/5 rounded-xl">{p.avatar}</span>
+                    <div>
+                      <div className="font-black text-white text-sm flex items-center gap-1.5">
+                        <span>{p.name}</span>
+                        {isMe && <span className="text-[10px] text-amber-400">(أنت)</span>}
+                      </div>
+                      {is2v2 && (
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block mt-0.5 ${
+                          p.team === 'A' ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'
+                        }`}>
+                          فريق {p.team}
                         </span>
                       )}
                     </div>
-                    {is2v2 && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.team === 'A' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-amber-500/20 text-amber-300'}`}>
-                        {p.team === 'A' ? t('lobby.team_a') : t('lobby.team_b')}
-                      </span>
-                    )}
                   </div>
-                </div>
 
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-2.5 h-2.5 rounded-full ${p.connected ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-500'}`} />
+                  {isPlayerHost && (
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black border border-amber-400/30">
+                      <Crown size={14} />
+                      <span>{t('lobby.host')}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Action button: Start match or Waiting status */}
-          <div className="mt-6 pt-4 border-t border-white/5 flex flex-col items-center">
+          {/* Start Game Action Bar */}
+          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-2">
             {isHost ? (
               <button
-                onClick={() => { sound.playSkruDeclaration(); onStartGame(); }}
-                disabled={lobbyState.players?.length < 2}
-                className={`w-full py-3.5 rounded-xl font-black text-base flex items-center justify-center gap-2 transition-all shadow-lg ${
-                  lobbyState.players?.length >= 2
-                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-900/40 hover:brightness-110 active:scale-[0.98]'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                onClick={onStartGame}
+                disabled={lobbyState.players.length < 2}
+                className={`btn-primary py-4 text-base font-black w-full shadow-2xl ${
+                  lobbyState.players.length < 2 ? 'opacity-40 cursor-not-allowed' : ''
                 }`}
               >
-                <Play size={18} className="fill-current" />
+                <Play size={20} />
                 <span>{t('lobby.start_game')}</span>
               </button>
             ) : (
-              <div className="flex items-center gap-2 text-slate-400 text-sm font-semibold animate-pulse">
-                <Clock size={16} />
-                <span>{t('lobby.waiting_players')}</span>
+              <div className="text-center py-3 text-sm font-bold text-amber-300 animate-pulse">
+                ⏳ {t('lobby.waiting_for_host')}
               </div>
             )}
           </div>
@@ -186,201 +187,192 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     );
   }
 
-  // Lobby tab switcher: Join or Create Room
+  // Lobby Home Screen (Join / Create Tabs)
   return (
-    <div className="w-full max-w-lg mx-auto p-4 flex flex-col gap-5">
-      {/* Profile Setup: Avatar & Name */}
-      <div className="glass-panel p-5">
-        <label className="text-xs font-bold text-slate-400 mb-2 block">
-          {t('lobby.select_avatar')}
-        </label>
-        <div className="flex flex-wrap gap-2 mb-4 justify-center sm:justify-start">
-          {AVATARS.map(av => (
-            <button
-              key={av}
-              type="button"
-              onClick={() => { sound.playCardFlip(); setAvatar(av); }}
-              className={`text-2xl p-2 rounded-xl transition-all ${
-                avatar === av 
-                  ? 'bg-emerald-500/30 border-2 border-emerald-400 scale-110 shadow-md' 
-                  : 'bg-white/5 hover:bg-white/10 border border-white/5'
-              }`}
-            >
-              {av}
-            </button>
-          ))}
+    <div className="w-full max-w-xl mx-auto p-4 flex flex-col gap-5">
+      {/* Profile Card (Name & Avatar Picker) */}
+      <div className="glass-panel p-5 sm:p-6 flex flex-col gap-4 border border-white/10 shadow-2xl">
+        <span className="text-xs font-black text-amber-400 uppercase tracking-widest">
+          {language === 'ar' ? 'ملف اللاعب' : 'Player Profile'}
+        </span>
+
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-emerald-500 p-0.5 shadow-lg shadow-amber-500/20 flex-shrink-0">
+            <div className="w-full h-full rounded-2xl bg-[#082216] flex items-center justify-center text-3xl">
+              {avatar}
+            </div>
+          </div>
+          <div className="flex-1">
+            <label className="text-xs font-bold text-slate-300 block mb-1">
+              {t('lobby.your_name')}
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="اسمك في اللعبة..."
+              maxLength={14}
+              className="input-field"
+            />
+          </div>
         </div>
 
-        <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-          {t('lobby.your_name')}
-        </label>
-        <input
-          type="text"
-          value={name}
-          maxLength={18}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t('lobby.your_name')}
-          className="w-full px-4 py-2.5 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-white font-bold placeholder-slate-500 focus:outline-none focus:border-emerald-400 transition-all text-sm"
-        />
+        {/* Avatar Selection Carousel */}
+        <div>
+          <span className="text-xs font-bold text-slate-400 block mb-2">
+            {t('lobby.choose_avatar')}
+          </span>
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {AVATARS.map(av => (
+              <button
+                key={av}
+                type="button"
+                onClick={() => { sound.playCardFlip(); setAvatar(av); }}
+                className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 transition-all ${
+                  avatar === av 
+                    ? 'bg-amber-500/30 border-2 border-amber-400 scale-110 shadow-lg' 
+                    : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {av}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Mode Tabs: Join Room vs Create Room */}
-      <div className="flex p-1 rounded-xl bg-black/20 dark:bg-black/40 border border-white/5">
+      {/* Segmented Control Tabs (Join vs Create) */}
+      <div className="p-1 rounded-2xl bg-black/40 border border-white/10 flex items-center gap-1 shadow-lg">
         <button
           onClick={() => { sound.playCardSlide(); setActiveTab('JOIN'); }}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-extrabold transition-all flex items-center justify-center gap-2 ${
-            activeTab === 'JOIN'
-              ? 'bg-emerald-600 text-white shadow'
+          className={`flex-1 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'JOIN' 
+              ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg' 
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <UserPlus size={16} />
-          {t('lobby.join_room')}
+          <span>{t('lobby.join_room')}</span>
         </button>
 
         <button
           onClick={() => { sound.playCardSlide(); setActiveTab('CREATE'); }}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-extrabold transition-all flex items-center justify-center gap-2 ${
-            activeTab === 'CREATE'
-              ? 'bg-emerald-600 text-white shadow'
+          className={`flex-1 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'CREATE' 
+              ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-lg' 
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <Sparkles size={16} />
-          {t('lobby.create_room')}
+          <span>{t('lobby.create_room')}</span>
         </button>
       </div>
 
-      {/* Tab 1: JOIN ROOM */}
+      {/* JOIN ROOM TAB */}
       {activeTab === 'JOIN' && (
-        <form onSubmit={handleJoin} className="glass-panel p-5 flex flex-col gap-4">
+        <form onSubmit={handleJoin} className="glass-panel p-6 flex flex-col gap-4 border border-white/10 shadow-2xl">
           <div>
-            <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-              {t('lobby.room_code')} (e.g. SKRU-9X2)
+            <label className="text-xs font-black text-amber-400 uppercase tracking-widest block mb-1">
+              {t('lobby.room_code')} (مثال: SKRU-9X2)
             </label>
             <input
               type="text"
-              required
               value={roomCodeInput}
-              onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-              placeholder="SKRU-XXX"
-              className="w-full px-4 py-3 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-amber-400 font-mono font-black text-xl tracking-wider text-center focus:outline-none focus:border-amber-400 transition-all uppercase placeholder-slate-600"
+              onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
+              placeholder="SKRU-..."
+              maxLength={10}
+              className="input-field font-mono text-center text-2xl tracking-widest text-amber-400 font-black"
+              required
             />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-              {t('lobby.passcode')}
+            <label className="text-xs font-bold text-slate-400 block mb-1">
+              {t('lobby.room_passcode')} (اختياري)
             </label>
             <input
               type="password"
               value={passcodeInput}
-              onChange={(e) => setPasscodeInput(e.target.value)}
-              placeholder="••••"
-              className="w-full px-4 py-2.5 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-white font-mono text-center tracking-widest focus:outline-none focus:border-emerald-400 transition-all text-sm"
+              onChange={e => setPasscodeInput(e.target.value)}
+              placeholder="PIN..."
+              className="input-field text-center font-mono"
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full mt-2 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-black text-base shadow-lg shadow-emerald-900/30 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-          >
-            <span>{t('lobby.join_room')}</span>
+          <button type="submit" className="btn-primary py-3.5 text-base font-black shadow-xl mt-2">
+            <span>{t('lobby.enter_room')}</span>
             <ArrowRight size={18} />
           </button>
         </form>
       )}
 
-      {/* Tab 2: CREATE ROOM */}
+      {/* CREATE ROOM TAB */}
       {activeTab === 'CREATE' && (
-        <form onSubmit={handleCreate} className="glass-panel p-5 flex flex-col gap-4">
+        <form onSubmit={handleCreate} className="glass-panel p-6 flex flex-col gap-4 border border-white/10 shadow-2xl">
           <div>
-            <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-              {t('lobby.variant')}
+            <label className="text-xs font-black text-amber-400 uppercase tracking-widest block mb-2">
+              {t('lobby.game_variant')}
             </label>
-            <select
-              value={variant}
-              onChange={(e) => setVariant(e.target.value as GameVariant)}
-              className="w-full px-4 py-2.5 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-white font-bold focus:outline-none focus:border-emerald-400 transition-all text-sm"
-            >
-              <option value="CLASSIC" className="bg-slate-900 text-white">{t('lobby.variant_classic')}</option>
-              <option value="SAHEB_SA7BO" className="bg-slate-900 text-white">{t('lobby.variant_saheb')}</option>
-              <option value="DELUXE" className="bg-slate-900 text-white">{t('lobby.variant_deluxe')}</option>
-              <option value="FRENCH_DECK" className="bg-slate-900 text-white">{t('lobby.variant_french')}</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-                {t('lobby.points_cap')}
-              </label>
-              <select
-                value={pointsCap}
-                onChange={(e) => setPointsCap(parseInt(e.target.value, 10))}
-                className="w-full px-3 py-2 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-white font-bold text-sm"
-              >
-                <option value={50} className="bg-slate-900">50 {t('game.score')}</option>
-                <option value={100} className="bg-slate-900">100 {t('game.score')}</option>
-                <option value={150} className="bg-slate-900">150 {t('game.score')}</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-                {t('lobby.turn_timer')}
-              </label>
-              <select
-                value={turnTimer}
-                onChange={(e) => setTurnTimer(parseInt(e.target.value, 10))}
-                className="w-full px-3 py-2 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-white font-bold text-sm"
-              >
-                <option value={15} className="bg-slate-900">15s</option>
-                <option value={20} className="bg-slate-900">20s</option>
-                <option value={30} className="bg-slate-900">30s</option>
-                <option value={0} className="bg-slate-900">{t('lobby.unlimited')}</option>
-              </select>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                { id: 'CLASSIC', label: 'كلاسيك 68 كارت' },
+                { id: 'SAHEB_SA7BO', label: 'صاحب صاحبه (2v2)' },
+                { id: 'DELUXE', label: 'ديلوكس بلس' },
+                { id: 'FRENCH_DECK', label: 'كوتشينة عادية' }
+              ].map(v => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => { sound.playCardFlip(); setVariant(v.id as any); }}
+                  className={`p-3 rounded-xl text-xs font-black border transition-all text-center ${
+                    variant === v.id 
+                      ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-md scale-102' 
+                      : 'bg-black/30 border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-                {language === 'ar' ? 'أقصى عدد لاعبين' : 'Max Players'}
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                الحد الأقصى للاعبين
               </label>
               <select
                 value={maxPlayers}
-                onChange={(e) => setMaxPlayers(parseInt(e.target.value, 10))}
-                className="w-full px-3 py-2 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-white font-bold text-sm"
+                onChange={e => setMaxPlayers(parseInt(e.target.value, 10))}
+                className="input-field"
               >
-                <option value={2} className="bg-slate-900">2 Players</option>
-                <option value={3} className="bg-slate-900">3 Players</option>
-                <option value={4} className="bg-slate-900">4 Players</option>
-                <option value={6} className="bg-slate-900">6 Players</option>
-                <option value={8} className="bg-slate-900">8 Players</option>
+                <option value={2}>2 لاعبين</option>
+                <option value={3}>3 لاعبين</option>
+                <option value={4}>4 لاعبين</option>
+                <option value={6}>6 لاعبين</option>
+                <option value={8}>8 لاعبين</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-400 mb-1.5 block">
-                {t('lobby.passcode')}
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                حد نقاط الخسارة
               </label>
-              <input
-                type="password"
-                value={passcodeInput}
-                onChange={(e) => setPasscodeInput(e.target.value)}
-                placeholder="Optional PIN"
-                className="w-full px-3 py-2 rounded-xl bg-black/20 dark:bg-black/40 border border-white/10 text-white text-sm"
-              />
+              <select
+                value={pointsCap}
+                onChange={e => setPointsCap(parseInt(e.target.value, 10))}
+                className="input-field"
+              >
+                <option value={50}>50 نقطة (مباراة سريعة)</option>
+                <option value={100}>100 نقطة (قياسي)</option>
+                <option value={150}>150 نقطة (طويلة)</option>
+              </select>
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="w-full mt-2 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-amber-500 text-white font-black text-base shadow-lg shadow-emerald-900/30 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-          >
-            <span>{t('lobby.create_room')}</span>
+          <button type="submit" className="btn-gold py-3.5 text-base font-black shadow-xl mt-2">
             <Sparkles size={18} />
+            <span>إنشاء الغرفة الآن</span>
           </button>
         </form>
       )}

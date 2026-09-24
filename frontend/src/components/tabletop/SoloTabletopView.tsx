@@ -121,24 +121,32 @@ export const SoloTabletopView: React.FC = () => {
           </div>
         )}
 
-        {/* Bot Opponents */}
-        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 mt-1">
+        {/* Bot Opponents Header Arc */}
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-1">
           {session.players.slice(1).map((bot, bIdx) => {
             const isTurn = session.currentTurnIndex === bIdx + 1;
             return (
               <div 
                 key={bot.id}
-                className={`flex flex-col items-center p-2.5 rounded-2xl transition-all ${
-                  isTurn ? 'bg-amber-500/20 border-2 border-amber-400 scale-105 shadow-lg' : 'bg-black/20 border border-white/5'
+                className={`glass-panel p-2.5 flex flex-col items-center transition-all ${
+                  isTurn ? 'border-amber-400 shadow-lg scale-105' : 'opacity-85'
                 }`}
+                style={{
+                  boxShadow: isTurn ? '0 0 20px rgba(245, 158, 11, 0.4)' : undefined,
+                  borderColor: isTurn ? '#F59E0B' : undefined
+                }}
               >
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <span className="text-xl">{bot.avatar}</span>
                   <span className="text-xs font-black text-white">{bot.name}</span>
-                  {bot.hasCalledSkru && <span className="text-xs bg-red-500 text-white px-1 rounded font-black">SKRU</span>}
+                  {bot.hasCalledSkru && (
+                    <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black tracking-wider animate-pulse">
+                      SKRU!
+                    </span>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 scale-75 origin-top">
-                  {bot.hand.map((c, cIdx) => (
+                  {bot.hand.map((c) => (
                     <CardView
                       key={c.id}
                       id={c.id}
@@ -159,9 +167,9 @@ export const SoloTabletopView: React.FC = () => {
         </div>
       </div>
 
-      {/* Center Table: Draw Pile & Discard Pile */}
-      <div className="my-auto flex flex-col items-center justify-center gap-4 z-10">
-        <div className="flex items-center justify-center gap-8 sm:gap-12">
+      {/* Center Table: Draw Pile & Discard Pile on Casino Felt */}
+      <div className="my-auto flex flex-col items-center justify-center gap-4 z-10 py-2">
+        <div className="flex items-center justify-center gap-8 sm:gap-14">
           {/* Draw Pile */}
           <div 
             onClick={() => handleDraw('DRAW_PILE')}
@@ -169,14 +177,17 @@ export const SoloTabletopView: React.FC = () => {
               isHumanTurn && !session.drawnCard ? 'hover:scale-105 active:scale-95' : 'opacity-85'
             }`}
           >
-            <div className="card-3d">
-              <div className="card-face card-back flex flex-col items-center justify-center">
-                <span className="text-xs font-black text-amber-200">
-                  {session.drawPile.length}
-                </span>
+            <div className="card-slot flex items-center justify-center relative">
+              <div className="card-3d">
+                <div className="card-face card-back flex flex-col items-center justify-center">
+                  <span className="text-sm font-black text-amber-300">
+                    {session.drawPile.length}
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-200/80">كارت</span>
+                </div>
               </div>
             </div>
-            <span className="text-xs font-black mt-2 text-slate-300">{t('game.draw_deck')}</span>
+            <span className="text-xs font-black mt-2 text-slate-200">{t('game.draw_deck')}</span>
           </div>
 
           {/* Discard Pile */}
@@ -186,30 +197,30 @@ export const SoloTabletopView: React.FC = () => {
               isHumanTurn && !session.drawnCard ? 'hover:scale-105 active:scale-95' : ''
             }`}
           >
-            {session.discardPile.length > 0 ? (
-              <CardView
-                id={session.discardPile[session.discardPile.length - 1].id}
-                value={session.discardPile[session.discardPile.length - 1].value}
-                action={session.discardPile[session.discardPile.length - 1].action}
-                labelAr={session.discardPile[session.discardPile.length - 1].labelAr}
-                labelEn={session.discardPile[session.discardPile.length - 1].labelEn}
-                color={session.discardPile[session.discardPile.length - 1].color as any}
-                isFaceUp={true}
-                canInteract={false}
-                lang={language}
-              />
-            ) : (
-              <div className="card-3d border-2 border-dashed border-white/20 rounded-2xl flex items-center justify-center text-xs font-bold text-slate-500">
-                {t('game.discard_pile')}
-              </div>
-            )}
-            <span className="text-xs font-black mt-2 text-slate-300">{t('game.discard_pile')}</span>
+            <div className="card-slot flex items-center justify-center">
+              {session.discardPile.length > 0 ? (
+                <CardView
+                  id={session.discardPile[session.discardPile.length - 1].id}
+                  value={session.discardPile[session.discardPile.length - 1].value}
+                  action={session.discardPile[session.discardPile.length - 1].action}
+                  labelAr={session.discardPile[session.discardPile.length - 1].labelAr}
+                  labelEn={session.discardPile[session.discardPile.length - 1].labelEn}
+                  color={session.discardPile[session.discardPile.length - 1].color as any}
+                  isFaceUp={true}
+                  canInteract={false}
+                  lang={language}
+                />
+              ) : (
+                <span className="text-xs font-bold text-slate-500">{t('game.discard_pile')}</span>
+              )}
+            </div>
+            <span className="text-xs font-black mt-2 text-slate-200">{t('game.discard_pile')}</span>
           </div>
         </div>
 
-        {/* Drawn Card Overlay */}
+        {/* Drawn Card Overlay Banner */}
         {session.drawnCard && isHumanTurn && (
-          <div className="glass-panel p-3 flex items-center gap-4 animate-scaleIn border-amber-400">
+          <div className="glass-panel p-3.5 flex items-center gap-4 animate-scaleIn border-amber-400 shadow-2xl">
             <span className="text-xs font-bold text-amber-300">الكارت المسحوب:</span>
             <CardView
               id={session.drawnCard.id}
@@ -222,13 +233,13 @@ export const SoloTabletopView: React.FC = () => {
               canInteract={false}
               lang={language}
             />
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] text-slate-300 font-semibold">
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] text-slate-200 font-semibold max-w-[180px]">
                 اضغط على كارت في يدك لتبديله، أو ارمه:
               </span>
               <button
                 onClick={handleDiscard}
-                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs shadow"
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs shadow-lg transition-transform active:scale-95"
               >
                 {t('game.discard_card')}
               </button>
@@ -237,23 +248,38 @@ export const SoloTabletopView: React.FC = () => {
         )}
       </div>
 
-      {/* Bottom Area: Human Player Hand */}
+      {/* Bottom Area: Human Player Hand (2x2 Grid with Luxury Card Slots) */}
       <div className="w-full px-4 pb-4 flex flex-col items-center gap-3 z-20">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 p-3 rounded-2xl bg-black/30 border border-white/10 backdrop-blur-md shadow-2xl">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-xs font-black text-amber-300">أنت (بطل الطاولة)</span>
+          {isHumanTurn && (
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold animate-pulse">
+              دورك للعب الآن 🎲
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 p-3 sm:p-4 rounded-3xl glass-panel shadow-2xl">
           {humanPlayer.hand.map((c, idx) => (
-            <CardView
-              key={c.id}
-              id={c.id}
-              value={c.value}
-              action={c.action}
-              labelAr={c.labelAr}
-              labelEn={c.labelEn}
-              color={c.color as any}
-              isFaceUp={c.isFaceUp || session.isRoundOver || isHoldingPeek}
-              isSelected={selectedOwnCardIdx === idx}
-              onClick={() => handleCardClick(idx)}
-              lang={language}
-            />
+            <div key={c.id} className="relative flex flex-col items-center">
+              <span className="absolute -top-2 left-2 z-20 w-5 h-5 rounded-full bg-black/60 border border-amber-400/40 text-[10px] font-black text-amber-300 flex items-center justify-center pointer-events-none">
+                {idx + 1}
+              </span>
+              <div className="card-slot">
+                <CardView
+                  id={c.id}
+                  value={c.value}
+                  action={c.action}
+                  labelAr={c.labelAr}
+                  labelEn={c.labelEn}
+                  color={c.color as any}
+                  isFaceUp={c.isFaceUp || session.isRoundOver || isHoldingPeek}
+                  isSelected={selectedOwnCardIdx === idx}
+                  onClick={() => handleCardClick(idx)}
+                  lang={language}
+                />
+              </div>
+            </div>
           ))}
         </div>
 

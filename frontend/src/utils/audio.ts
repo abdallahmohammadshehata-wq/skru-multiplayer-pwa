@@ -171,6 +171,10 @@ class SoundEngine {
     });
   }
 
+  public playSkruShout(): void {
+    this.playSkruDeclaration();
+  }
+
   /**
    * Triumphant victory fanfare for match winner
    */

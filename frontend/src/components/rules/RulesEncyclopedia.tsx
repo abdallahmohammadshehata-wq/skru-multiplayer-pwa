@@ -118,7 +118,7 @@ export const RulesEncyclopedia: React.FC = () => {
   });
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 flex flex-col gap-6">
+    <div className="w-full max-w-4xl mx-auto p-4 pb-28 flex flex-col gap-6">
       {/* Header */}
       <div className="glass-panel p-6 text-center flex flex-col items-center relative overflow-hidden">
         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-emerald-500" />
