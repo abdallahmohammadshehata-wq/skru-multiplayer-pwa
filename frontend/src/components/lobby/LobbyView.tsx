@@ -15,6 +15,9 @@ interface LobbyViewProps {
   onLeaveRoom?: () => void;
   isConnected?: boolean;
   myPlayerId: string;
+  isJoiningRoom?: boolean;
+  joinError?: string | null;
+  onClearJoinError?: () => void;
 }
 
 export const LobbyView: React.FC<LobbyViewProps> = ({
@@ -25,7 +28,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   onAddBot,
   onLeaveRoom,
   isConnected = false,
-  myPlayerId
+  myPlayerId,
+  isJoiningRoom = false,
+  joinError = null,
+  onClearJoinError
 }) => {
   const { t, language } = useTranslation();
 
@@ -216,18 +222,76 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
   // Lobby Home Screen (Join / Create Tabs)
   return (
-    <div className="w-full max-w-xl mx-auto p-4 flex flex-col gap-4">
+    <div className="w-full max-w-xl mx-auto p-4 flex flex-col gap-4 relative">
+      {/* Active Connecting Modal Overlay */}
+      {isJoiningRoom && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass-panel p-8 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-amber-400 shadow-2xl animate-scaleIn">
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <span className="w-16 h-16 rounded-full border-4 border-amber-400/20 border-t-amber-400 animate-spin absolute" />
+              <Radio size={28} className="text-amber-400 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white mb-1">
+                {language === 'ar' ? 'جاري الاتصال بالغرفة...' : 'Connecting to Room...'}
+              </h3>
+              <p className="text-xs text-slate-300 font-bold">
+                {language === 'ar' 
+                  ? 'جاري البحث عن المضيف ومزامنة اللاعبين عبر شبكة السحابة المباشرة...' 
+                  : 'Searching for host and synchronizing players over live cloud...'}
+              </p>
+            </div>
+            <span className="px-4 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-300 font-mono text-sm font-black">
+              {roomCodeInput || 'SKRU'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Join Error Banner */}
+      {joinError && (
+        <div className="p-4 rounded-2xl bg-red-950/80 border-2 border-red-500/50 shadow-2xl flex items-start justify-between gap-3 text-white animate-fadeIn">
+          <div>
+            <div className="text-sm font-black text-red-300 flex items-center gap-2 mb-0.5">
+              <span>⚠️</span>
+              <span>{language === 'ar' ? 'تعذر الانضمام للغرفة' : 'Unable to Join Room'}</span>
+            </div>
+            <p className="text-xs text-red-200">
+              {joinError === 'HOST_NOT_FOUND' 
+                ? (language === 'ar' 
+                    ? 'لم يتم العثور على المضيف بهذا الكود. تأكد أن المضيف قد أنشأ الغرفة بنفس الكود (5 أحرف).' 
+                    : 'Room host not found for this code. Make sure the host has created the room with this exact 5-character code.')
+                : (language === 'ar'
+                    ? 'حدث خطأ في شبكة الاتصال. يرجى المحاولة مجدداً.'
+                    : 'Network error occurred. Please try again.')}
+            </p>
+          </div>
+          {onClearJoinError && (
+            <button
+              onClick={onClearJoinError}
+              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex-shrink-0"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Network Connection Indicator */}
       <div className="glass-panel px-4 py-2.5 flex items-center justify-between border-white/10 shadow-md">
         <div className="flex items-center gap-2">
-          <span className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-black text-white flex items-center gap-1.5">
-            <Radio size={14} className={isConnected ? 'text-emerald-400' : 'text-amber-400'} />
-            <span>{isConnected ? (language === 'ar' ? 'سيرفر الأونلاين متصل (WebSocket Live)' : 'Online WebSocket Connected') : (language === 'ar' ? 'غرفة PWA المباشرة (WebRTC Live)' : 'Direct PWA Room (WebRTC Live)')}</span>
+            <Radio size={14} className="text-emerald-400" />
+            <span>
+              {language === 'ar' 
+                ? 'شبكة الغرف السحابية متصلة (Cloud Live)' 
+                : 'Cloud Rooms Live (MQTT/WSS)'}
+            </span>
           </span>
         </div>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
-          {language === 'ar' ? 'جاهز للعب فوراً' : 'Ready to Play'}
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
+          {language === 'ar' ? 'ربط عالمي لجميع الشبكات' : 'Global Network Sync'}
         </span>
       </div>
 

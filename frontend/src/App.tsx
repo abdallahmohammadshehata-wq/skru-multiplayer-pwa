@@ -27,10 +27,13 @@ const MainApp: React.FC = () => {
     peekReveal,
     chatMessages,
     emojiReactions,
+    isJoiningRoom,
+    joinError,
     send,
     clearPeekReveal,
     leaveRoom,
-    addBotToLobby
+    addBotToLobby,
+    clearJoinError
   } = useSkruSocket();
 
   // Auto-fill room from URL query ?room=SKRU-XXX
@@ -149,6 +152,9 @@ const MainApp: React.FC = () => {
                 onLeaveRoom={handleLeaveRoom}
                 isConnected={isConnected}
                 myPlayerId={myPlayerId}
+                isJoiningRoom={isJoiningRoom}
+                joinError={joinError}
+                onClearJoinError={clearJoinError}
               />
             )}
           </>
