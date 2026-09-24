@@ -36,6 +36,7 @@ interface TabletopViewProps {
   onStartNextRound?: () => void;
   onSendChat?: (text: string) => void;
   onSendEmoji?: (emoji: string) => void;
+  onClearPeekReveal?: () => void;
 }
 
 export const TabletopView: React.FC<TabletopViewProps> = ({
@@ -52,7 +53,8 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
   onCallSkru,
   onStartNextRound,
   onSendChat,
-  onSendEmoji
+  onSendEmoji,
+  onClearPeekReveal
 }) => {
   const { t, language } = useTranslation();
 
@@ -69,6 +71,17 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
   const opponents = gameState.players.filter(p => p.id !== myPlayerId);
   const isActionPending = gameState.status === 'ACTION_PENDING' && gameState.pendingActionSummary?.initiatorId === myPlayerId;
   const isRoundOver = gameState.status === 'ROUND_OVER' || gameState.status === 'GAME_OVER';
+
+  // Ephemeral peek auto-dismiss safety timer
+  useEffect(() => {
+    if (peekReveal) {
+      const duration = peekReveal.durationMs || (peekReveal.peekData?.requireSwapChoice ? 10000 : 4000);
+      const timer = setTimeout(() => {
+        onClearPeekReveal?.();
+      }, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [peekReveal, onClearPeekReveal]);
 
   // Initial memory peek countdown at the start of each round (Official Skru rule)
   useEffect(() => {
@@ -437,8 +450,23 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
 
         {/* EPHEMERAL PEEK REVEAL MODAL */}
         {peekReveal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
-            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl">
+          <div 
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                onClearPeekReveal?.();
+              }
+            }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn"
+          >
+            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl relative">
+              <button
+                onClick={() => onClearPeekReveal?.()}
+                className="absolute top-3 left-3 sm:left-auto sm:right-3 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all"
+                title={language === 'ar' ? 'إغلاق' : 'Close'}
+              >
+                <X size={18} />
+              </button>
+
               <h3 className="font-black text-lg text-purple-300 flex items-center gap-2">
                 <Eye size={22} />
                 <span>{language === 'ar' ? 'كشف الكارت السري' : 'Secret Card Revealed'}</span>
@@ -456,7 +484,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                   lang={language}
                 />
               )}
-              {peekReveal.peekData?.requireSwapChoice && (
+              {peekReveal.peekData?.requireSwapChoice ? (
                 <div className="flex flex-col gap-2 w-full mt-2">
                   <span className="text-xs font-bold text-amber-200">
                     {selectedOwnCardIdx !== null 
@@ -473,6 +501,8 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                             targetPlayerId: selectedTargetPlayerId,
                             targetCardIndex: selectedTargetCardIdx
                           });
+                          onClearPeekReveal?.();
+                          setSelectedOwnCardIdx(null);
                         }
                       }}
                       disabled={selectedOwnCardIdx === null}
@@ -481,12 +511,28 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                       {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
                     </button>
                     <button
-                      onClick={() => onExecuteAction({ chooseSwap: false, skip: true })}
+                      onClick={() => {
+                        onExecuteAction({ chooseSwap: false, skip: true });
+                        onClearPeekReveal?.();
+                        setSelectedOwnCardIdx(null);
+                      }}
                       className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
                     >
                       {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
                     </button>
                   </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 w-full mt-1">
+                  <button
+                    onClick={() => onClearPeekReveal?.()}
+                    className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>{language === 'ar' ? 'فهمت الكارت (إغلاق) ✓' : 'Got it (Close) ✓'}</span>
+                  </button>
+                  <span className="text-[10px] sm:text-[11px] text-slate-400">
+                    {language === 'ar' ? 'سيتم إخفاء الكارت تلقائياً أيضاً خلال ثوانٍ' : 'Card will also auto-hide in a few seconds'}
+                  </span>
                 </div>
               )}
             </div>

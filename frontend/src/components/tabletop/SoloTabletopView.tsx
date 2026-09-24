@@ -444,8 +444,29 @@ export const SoloTabletopView: React.FC = () => {
 
         {/* EPHEMERAL PEEK REVEAL MODAL */}
         {ephemeralPeek && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
-            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl">
+          <div 
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setEphemeralPeek(null);
+                setSelectedOwnCardIdx(null);
+                forceUpdate();
+              }
+            }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn"
+          >
+            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl relative">
+              <button
+                onClick={() => {
+                  setEphemeralPeek(null);
+                  setSelectedOwnCardIdx(null);
+                  forceUpdate();
+                }}
+                className="absolute top-3 left-3 sm:left-auto sm:right-3 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all"
+                title={language === 'ar' ? 'إغلاق' : 'Close'}
+              >
+                <X size={18} />
+              </button>
+
               <h3 className="font-black text-base text-purple-300 flex items-center gap-2">
                 <Eye size={20} />
                 <span>{ephemeralPeek.title}</span>
@@ -491,6 +512,7 @@ export const SoloTabletopView: React.FC = () => {
                       onClick={() => {
                         session.executeAction({ chooseSwap: false });
                         setEphemeralPeek(null);
+                        setSelectedOwnCardIdx(null);
                         forceUpdate();
                       }}
                       className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
@@ -500,9 +522,21 @@ export const SoloTabletopView: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <span className="text-[11px] text-slate-300">
-                  {language === 'ar' ? 'سيتم إخفاء الكارت تلقائياً خلال ثوانٍ...' : 'Card will hide automatically in a few seconds...'}
-                </span>
+                <div className="flex flex-col gap-2 w-full mt-1">
+                  <button
+                    onClick={() => {
+                      setEphemeralPeek(null);
+                      setSelectedOwnCardIdx(null);
+                      forceUpdate();
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs sm:text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>{language === 'ar' ? 'فهمت الكارت (إغلاق) ✓' : 'Got it (Close) ✓'}</span>
+                  </button>
+                  <span className="text-[10px] sm:text-[11px] text-slate-400">
+                    {language === 'ar' ? 'سيتم إخفاء الكارت تلقائياً أيضاً خلال ثوانٍ' : 'Card will also auto-hide in a few seconds'}
+                  </span>
+                </div>
               )}
             </div>
           </div>

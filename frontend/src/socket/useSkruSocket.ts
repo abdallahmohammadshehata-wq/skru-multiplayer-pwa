@@ -245,8 +245,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
               break;
             case 'PEEK_REVEAL':
               setPeekReveal(msg.payload);
-              if (msg.payload.durationMs) {
-                setTimeout(() => setPeekReveal(null), msg.payload.durationMs);
+              {
+                const peekDuration = msg.payload?.durationMs || (msg.payload?.peekData?.requireSwapChoice ? 10000 : 4000);
+                setTimeout(() => setPeekReveal(null), peekDuration);
               }
               break;
             case 'CHAT_BROADCAST':
@@ -497,6 +498,22 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
       case 'EXECUTE_ACTION': {
         const session = localSessionRef.current;
         if (!session) return;
+
+        if (payload?.chooseSwap !== undefined || payload?.skip) {
+          setPeekReveal(null);
+          if (payload?.chooseSwap && payload?.ownCardIndex !== undefined && payload?.targetPlayerId !== undefined) {
+            const p0 = session.players[0];
+            const opp = session.players.find(p => p.id === payload.targetPlayerId) || session.players[1];
+            if (p0 && opp && p0.hand[payload.ownCardIndex] && opp.hand[payload.targetCardIndex]) {
+              const temp = p0.hand[payload.ownCardIndex];
+              p0.hand[payload.ownCardIndex] = opp.hand[payload.targetCardIndex];
+              opp.hand[payload.targetCardIndex] = temp;
+            }
+          }
+          syncLocalGameState();
+          break;
+        }
+
         const top = session.discardPile[session.discardPile.length - 1];
         const actionType = top ? top.action : 'NONE';
 
@@ -507,6 +524,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
               peekData: { card },
               durationMs: 4000
             });
+            setTimeout(() => setPeekReveal(null), 4000);
           }
         } else if (actionType === 'PEEK_OTHER') {
           const targetOpp = session.players.find(p => p.id === payload.targetPlayerId) || session.players[1];
@@ -517,6 +535,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
                 peekData: { card },
                 durationMs: 4000
               });
+              setTimeout(() => setPeekReveal(null), 4000);
             }
           }
         } else if (actionType === 'SWAP') {
@@ -534,8 +553,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
             if (card) {
               setPeekReveal({
                 peekData: { card, requireSwapChoice: true },
-                durationMs: 6000
+                durationMs: 8000
               });
+              setTimeout(() => setPeekReveal(null), 8000);
             }
           }
         }
@@ -722,6 +742,8 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
           }
           case 'PEEK_REVEAL': {
             setPeekReveal(payload);
+            const duration = payload?.durationMs || 4000;
+            setTimeout(() => setPeekReveal(null), duration);
             break;
           }
           case 'CHAT_MESSAGE': {

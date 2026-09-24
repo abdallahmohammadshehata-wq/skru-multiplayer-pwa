@@ -145,6 +145,7 @@ const MainApp: React.FC = () => {
                 onStartNextRound={handleStartNextRound}
                 onSendChat={handleSendChat}
                 onSendEmoji={handleSendEmoji}
+                onClearPeekReveal={clearPeekReveal}
               />
             ) : (
               <LobbyView
