@@ -314,13 +314,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         <form onSubmit={handleJoin} className="glass-panel p-6 flex flex-col gap-4 border border-white/10 shadow-2xl">
           <div>
             <label className="text-xs font-black text-amber-400 uppercase tracking-widest block mb-1">
-              {t('lobby.room_code')} ({language === 'ar' ? 'مثال: SKRU-9X2' : 'e.g. SKRU-9X2'})
+              {t('lobby.room_code')} ({language === 'ar' ? 'مثال: 7X9K2' : 'e.g. 7X9K2'})
             </label>
             <input
               type="text"
               value={roomCodeInput}
               onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
-              placeholder="SKRU-..."
+              placeholder="7X9K2"
               maxLength={10}
               className="input-field font-mono text-center text-2xl tracking-widest text-amber-400 font-black"
               required

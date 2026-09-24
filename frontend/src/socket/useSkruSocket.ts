@@ -21,8 +21,8 @@ const BOT_AVATARS = ['🦊', '🐯', '🦅', '🐺', '🐼'];
 
 function generateRoomCode(): string {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let res = 'SKRU-';
-  for (let i = 0; i < 3; i++) {
+  let res = '';
+  for (let i = 0; i < 5; i++) {
     res += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return res;

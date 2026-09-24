@@ -230,14 +230,13 @@ export class RoomManager {
   }
 
   private generateRoomCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
     let code = '';
     do {
-      let part1 = '';
-      let part2 = '';
-      for (let i = 0; i < 4; i++) part1 += chars.charAt(Math.floor(Math.random() * chars.length));
-      for (let i = 0; i < 3; i++) part2 += chars.charAt(Math.floor(Math.random() * chars.length));
-      code = `SKRU-${part1.substring(0, 2)}${part2.charAt(0)}`;
+      code = '';
+      for (let i = 0; i < 5; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
     } while (this.rooms.has(code));
     return code;
   }
