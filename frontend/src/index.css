@@ -372,7 +372,11 @@ input, select, textarea {
 
 /* Background Gradients */
 .bg-table {
-  background: var(--bg-table);
+  background-color: #05130D;
+  background-image: url('./casino_felt.jpg'), radial-gradient(ellipse at 50% 40%, #0D3E2B 0%, #082419 60%, #030F0A 100%);
+  background-size: cover;
+  background-position: center;
+  background-blend-mode: overlay;
   min-height: 100vh;
 }
 

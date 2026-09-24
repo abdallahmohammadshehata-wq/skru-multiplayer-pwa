@@ -95,29 +95,18 @@ export const CardView: React.FC<CardProps> = ({
             : undefined
         }}
       >
-        {/* CARD BACK (Luxury Casino Felt & Gold Foil Emblem) */}
-        <div className="card-face card-back">
-          <div className="card-back-pattern" />
-          
-          {/* Ornate corner flourishes */}
-          <span className="absolute top-1.5 left-2 text-[10px] text-amber-400/60 font-serif">♠</span>
-          <span className="absolute top-1.5 right-2 text-[10px] text-amber-400/60 font-serif">♣</span>
-          <span className="absolute bottom-1.5 left-2 text-[10px] text-amber-400/60 font-serif">♦</span>
-          <span className="absolute bottom-1.5 right-2 text-[10px] text-amber-400/60 font-serif">♥</span>
-
-          <div className="text-center z-10 flex flex-col items-center">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-amber-300 p-0.5 shadow-md mb-1 flex items-center justify-center">
-              <div className="w-full h-full rounded-full bg-[#063322] flex items-center justify-center text-amber-300 font-black text-sm">
-                ♠
-              </div>
-            </div>
-            <span className="text-sm sm:text-base font-black tracking-widest text-amber-300 drop-shadow">
-              SKRU
-            </span>
-            <span className="text-[11px] font-black text-emerald-300 opacity-95">
-              سكرو
-            </span>
-          </div>
+        {/* CARD BACK (Authentic Luxury Egyptian Skru Foil Card) */}
+        <div 
+          className="card-face card-back"
+          style={{
+            backgroundImage: 'url("./card_back.jpg")',
+            backgroundSize: '100% 100%',
+            backgroundPosition: 'center',
+            borderColor: '#F59E0B',
+            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.6)'
+          }}
+        >
+          <div className="card-back-pattern" style={{ border: '1px solid rgba(245, 158, 11, 0.4)' }} />
         </div>
 
         {/* CARD FRONT (Crystal Clear Typography & Action Icons) */}

@@ -59,6 +59,8 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
   const [selectedOwnCardIdx, setSelectedOwnCardIdx] = useState<number | null>(null);
   const [selectedTargetPlayerId, setSelectedTargetPlayerId] = useState<string | null>(null);
   const [selectedTargetCardIdx, setSelectedTargetCardIdx] = useState<number | null>(null);
+  const [isHoldingPeek, setIsHoldingPeek] = useState<boolean>(false);
+  const [initialPeekTimer, setInitialPeekTimer] = useState<number>(6);
 
   const [activeSheet, setActiveSheet] = useState<'NONE' | 'SCOREBOARD' | 'CHAT'>('NONE');
   const [chatInput, setChatInput] = useState<string>('');
@@ -68,6 +70,21 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
   const opponents = gameState.players.filter(p => p.id !== myPlayerId);
   const isActionPending = gameState.status === 'ACTION_PENDING' && gameState.pendingActionSummary?.initiatorId === myPlayerId;
   const isRoundOver = gameState.status === 'ROUND_OVER' || gameState.status === 'GAME_OVER';
+
+  // Initial memory peek countdown at the start of each round (Official Skru rule)
+  useEffect(() => {
+    setInitialPeekTimer(6);
+    const interval = setInterval(() => {
+      setInitialPeekTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [gameState.roundNumber]);
 
   // Sound & Haptic tick during last 5 seconds of turn
   useEffect(() => {
@@ -430,31 +447,52 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             
             {/* 2x2 Dedicated Card Table Recesses */}
             <div className="grid grid-cols-2 gap-2.5 sm:gap-4 p-3 rounded-2xl bg-black/45 border-2 border-emerald-500/30 backdrop-blur-lg shadow-2xl">
-              {myPlayer.hand.map((card, idx) => (
-                <div key={card.id || idx} className="relative">
-                  <CardView
-                    id={card.id}
-                    value={card.value}
-                    action={card.action}
-                    labelAr={card.labelAr}
-                    labelEn={card.labelEn}
-                    color={card.color as any}
-                    isFaceUp={card.isFaceUp}
-                    isSelected={selectedOwnCardIdx === idx}
-                    onClick={() => handleOwnCardClick(idx)}
-                    lang={language}
-                  />
-                  <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-black/80 border border-white/20 text-white font-black text-[10px] flex items-center justify-center">
-                    {idx + 1}
-                  </span>
-                </div>
-              ))}
+              {myPlayer.hand.map((card, idx) => {
+                const isBottomTwoInitial = initialPeekTimer > 0 && (idx === 2 || idx === 3);
+                const isCardFaceUp = card.isFaceUp || isRoundOver || isHoldingPeek || isBottomTwoInitial;
+                return (
+                  <div key={card.id || idx} className="relative">
+                    <CardView
+                      id={card.id}
+                      value={card.value}
+                      action={card.action}
+                      labelAr={card.labelAr}
+                      labelEn={card.labelEn}
+                      color={card.color as any}
+                      isFaceUp={isCardFaceUp}
+                      isSelected={selectedOwnCardIdx === idx}
+                      onClick={() => handleOwnCardClick(idx)}
+                      lang={language}
+                    />
+                    <span className={`absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full font-black text-[10px] flex items-center justify-center border ${
+                      isBottomTwoInitial 
+                        ? 'bg-amber-400 text-black border-amber-300 animate-bounce' 
+                        : 'bg-black/80 border-white/20 text-white'
+                    }`}>
+                      {idx + 1}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Tactical Actions (Slap, Skru!, Chat, Scores) */}
+        {/* Tactical Actions (Peek, Slap, Skru!, Chat, Scores) */}
         <div className="flex items-center justify-center gap-2 w-full px-2">
+          {/* Secret Peek Hold Button */}
+          <button
+            onMouseDown={() => setIsHoldingPeek(true)}
+            onMouseUp={() => setIsHoldingPeek(false)}
+            onTouchStart={() => setIsHoldingPeek(true)}
+            onTouchEnd={() => setIsHoldingPeek(false)}
+            className="flex-1 py-3 px-2 rounded-2xl bg-white/10 hover:bg-white/15 text-amber-300 font-extrabold text-xs flex items-center justify-center gap-1.5 border border-white/10 active:scale-95 transition-all select-none shadow"
+            title={t('game.hold_to_peek')}
+          >
+            <Eye size={16} />
+            <span>{t('game.hold_to_peek')}</span>
+          </button>
+
           {/* Match Slap button */}
           <button
             onClick={handleSlap}

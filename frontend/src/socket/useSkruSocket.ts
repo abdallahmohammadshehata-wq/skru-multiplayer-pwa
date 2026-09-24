@@ -404,9 +404,77 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
 
       case 'DISCARD_CARD': {
         const session = localSessionRef.current;
-        if (!session) return;
+        if (!session || !session.drawnCard) return;
+        const discarded = session.drawnCard;
         session.discard();
-        syncLocalGameState();
+
+        // If card has an actionable power, trigger ACTION_PENDING
+        if (discarded.action && discarded.action !== 'NONE') {
+          setGameState(prev => prev ? ({
+            ...prev,
+            status: 'ACTION_PENDING',
+            pendingActionSummary: {
+              type: discarded.action,
+              initiatorId: myId,
+              expiresInSeconds: 15,
+              stage: 'SELECT_TARGET'
+            }
+          }) : null);
+        } else {
+          syncLocalGameState();
+        }
+        break;
+      }
+
+      case 'EXECUTE_ACTION': {
+        const session = localSessionRef.current;
+        if (!session) return;
+        const top = session.discardPile[session.discardPile.length - 1];
+        const actionType = top ? top.action : 'NONE';
+
+        if (actionType === 'PEEK_OWN') {
+          const card = session.players[0].hand[payload.ownCardIndex];
+          if (card) {
+            setPeekReveal({
+              peekData: { card },
+              durationMs: 4000
+            });
+          }
+        } else if (actionType === 'PEEK_OTHER') {
+          const targetOpp = session.players.find(p => p.id === payload.targetPlayerId) || session.players[1];
+          if (targetOpp) {
+            const card = targetOpp.hand[payload.targetCardIndex];
+            if (card) {
+              setPeekReveal({
+                peekData: { card },
+                durationMs: 4000
+              });
+            }
+          }
+        } else if (actionType === 'SWAP') {
+          const p0 = session.players[0];
+          const opp = session.players.find(p => p.id === payload.targetPlayerId) || session.players[1];
+          if (p0 && opp && p0.hand[payload.myCardIndex] && opp.hand[payload.targetCardIndex]) {
+            const temp = p0.hand[payload.myCardIndex];
+            p0.hand[payload.myCardIndex] = opp.hand[payload.targetCardIndex];
+            opp.hand[payload.targetCardIndex] = temp;
+          }
+        } else if (actionType === 'PEEK_AND_SWAP') {
+          const opp = session.players.find(p => p.id === payload.targetPlayerId) || session.players[1];
+          if (opp) {
+            const card = opp.hand[payload.targetCardIndex];
+            if (card) {
+              setPeekReveal({
+                peekData: { card, requireSwapChoice: true },
+                durationMs: 6000
+              });
+            }
+          }
+        }
+
+        setTimeout(() => {
+          syncLocalGameState();
+        }, 300);
         break;
       }
 
