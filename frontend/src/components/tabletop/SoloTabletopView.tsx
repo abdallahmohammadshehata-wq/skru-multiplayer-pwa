@@ -23,6 +23,7 @@ export const SoloTabletopView: React.FC = () => {
   const [selectedOwnCardIdx, setSelectedOwnCardIdx] = useState<number | null>(null);
   const [opponentBotCount, setOpponentBotCount] = useState<number>(2);
   const [initialPeekTimer, setInitialPeekTimer] = useState<number>(6);
+  const [turnSecondsRemaining, setTurnSecondsRemaining] = useState<number>(20);
   const [ephemeralPeek, setEphemeralPeek] = useState<{ card: Card; title: string; requireSwapChoice?: boolean } | null>(null);
   const [slapToast, setSlapToast] = useState<{ isMatch: boolean; messageAr: string; messageEn: string } | null>(null);
 
@@ -42,6 +43,42 @@ export const SoloTabletopView: React.FC = () => {
       session.onStateChange = undefined;
     };
   }, [session]);
+
+  // Turn countdown timer for human player turn in Solo Mode
+  useEffect(() => {
+    setTurnSecondsRemaining(20);
+  }, [session.currentTurnIndex, session.roundNumber]);
+
+  useEffect(() => {
+    if (!isHumanTurn || session.isRoundOver || session.isGameOver) return;
+
+    const timer = setInterval(() => {
+      setTurnSecondsRemaining(prev => {
+        if (prev <= 1) {
+          // Auto advance turn on timeout
+          if (session.drawnCard) {
+            session.discard();
+          } else if (session.pendingAction) {
+            session.skipAction();
+          } else {
+            session.draw('DRAW_PILE');
+            session.discard();
+          }
+          forceUpdate();
+          return 20;
+        }
+
+        if (prev <= 6) {
+          sound.playTimerTick();
+          triggerHaptic('light');
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isHumanTurn, session]);
 
   // Initial memory peek countdown at round start (Official Skru Rule)
   useEffect(() => {
@@ -360,8 +397,28 @@ export const SoloTabletopView: React.FC = () => {
         </div>
       )}
 
-      {/* Center Table: Draw Pile & Discard Pile on Casino Felt */}
+      {/* Center Table: Turn Countdown, Draw Pile & Discard Pile on Casino Felt */}
       <div className="my-auto flex flex-col items-center justify-center gap-2 sm:gap-3 z-10 py-1 sm:py-2">
+        {/* Turn Countdown & Player Status */}
+        <div className="flex flex-col items-center gap-1 w-full max-w-[260px] sm:max-w-xs px-2">
+          <div className="flex items-center justify-between w-full text-xs font-black">
+            <span className={isHumanTurn ? 'text-amber-400 animate-pulse text-xs sm:text-sm' : 'text-slate-300 text-xs'}>
+              {isHumanTurn ? `✨ ${t('game.your_turn')} ✨` : t('game.turn_of', { name: session.players[session.currentTurnIndex]?.name || '' })}
+            </span>
+            <span className={`font-mono text-xs sm:text-sm font-black px-2 py-0.2 rounded-full bg-black/40 border border-white/10 ${turnSecondsRemaining <= 5 && isHumanTurn ? 'text-red-400 animate-ping' : 'text-amber-300'}`}>
+              {turnSecondsRemaining}s
+            </span>
+          </div>
+          <div className="turn-timer-bar">
+            <div 
+              className="turn-timer-progress" 
+              style={{ 
+                width: `${Math.min(100, Math.max(0, (turnSecondsRemaining / 20) * 100))}%` 
+              }} 
+            />
+          </div>
+        </div>
+
         <div className="flex items-center justify-center gap-5 sm:gap-12">
           {/* Draw Pile */}
           <div 

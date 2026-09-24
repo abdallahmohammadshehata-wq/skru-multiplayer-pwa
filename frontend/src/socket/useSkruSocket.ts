@@ -49,6 +49,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
   const localSessionRef = useRef<LocalGameSession | null>(null);
   const localLobbyRef = useRef<any | null>(null);
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const turnSecondsRemainingRef = useRef<number>(20);
+  const lastTurnIndexRef = useRef<number>(-1);
+  const lastRoundNumberRef = useRef<number>(-1);
   const myPlayerIdRef = useRef<string>(
     typeof window !== 'undefined'
       ? (localStorage.getItem('skru_my_player_id') || 'p_' + Math.random().toString(36).substring(2, 9))
@@ -105,7 +108,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
       players: sanitizedPlayers,
       spectators: [],
       currentTurnPlayerId: currentP ? currentP.id : session.players[0].id,
-      turnSecondsRemaining: 20,
+      turnSecondsRemaining: turnSecondsRemainingRef.current,
       topDiscard: session.discardPile.length > 0 ? session.discardPile[session.discardPile.length - 1] : null,
       drawPileCount: session.drawPile.length,
       hasDrawnCard: session.drawnCard !== null,
@@ -129,6 +132,41 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
       broadcastChannelRef.current.postMessage({ type: 'GAME_STATE', payload: state });
     }
   }, []);
+
+  // Turn timer countdown interval for host/local session
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const session = localSessionRef.current;
+      const lobby = localLobbyRef.current;
+      if (!session || !lobby || session.isRoundOver || session.isGameOver) return;
+
+      // Reset timer if turn or round changed
+      if (lastTurnIndexRef.current !== session.currentTurnIndex || lastRoundNumberRef.current !== session.roundNumber) {
+        lastTurnIndexRef.current = session.currentTurnIndex;
+        lastRoundNumberRef.current = session.roundNumber;
+        turnSecondsRemainingRef.current = 20;
+      } else {
+        turnSecondsRemainingRef.current = Math.max(0, turnSecondsRemainingRef.current - 1);
+      }
+
+      // If timer expired, auto advance turn
+      if (turnSecondsRemainingRef.current <= 0) {
+        if (session.drawnCard) {
+          session.discard();
+        } else if (session.pendingAction) {
+          session.skipAction();
+        } else {
+          session.draw('DRAW_PILE');
+          session.discard();
+        }
+        turnSecondsRemainingRef.current = 20;
+      }
+
+      syncLocalGameState();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [syncLocalGameState]);
 
   // Subscribe to NetworkEngine debug status changes for UI display
   useEffect(() => {
