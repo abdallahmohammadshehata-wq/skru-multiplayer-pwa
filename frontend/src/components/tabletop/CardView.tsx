@@ -124,26 +124,26 @@ export const CardView: React.FC<CardProps> = ({
                 className="text-xs sm:text-sm md:text-base font-black leading-none drop-shadow-sm font-mono"
                 style={{ color: theme.text }}
               >
-                {value !== undefined ? (value < 0 ? `${value}` : value) : '?'}
+                {isRevealed && value !== undefined ? (value < 0 ? `${value}` : value) : '?'}
               </span>
             </div>
-            <div>{renderActionIcon(12)}</div>
+            <div>{isRevealed ? renderActionIcon(12) : null}</div>
           </div>
 
           {/* Center Card Content */}
           <div 
             className="flex flex-col items-center justify-center my-auto text-center w-full rounded-lg sm:rounded-xl py-0.5 sm:py-1.5"
-            style={{ background: theme.bg }}
+            style={{ background: isRevealed ? theme.bg : 'transparent' }}
           >
             <span 
               className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight drop-shadow font-mono leading-none"
               style={{ color: theme.text }}
             >
-              {value !== undefined ? value : '?'}
+              {isRevealed && value !== undefined ? value : '?'}
             </span>
 
             {/* Action Label Pill */}
-            {action !== 'NONE' && (
+            {isRevealed && action !== 'NONE' && (
               <span 
                 className="text-[8px] sm:text-[10px] font-extrabold mt-0.5 sm:mt-1 text-white bg-black/75 px-1 sm:px-2 py-0.2 sm:py-0.5 rounded-full border border-white/20 tracking-tight truncate max-w-[95%]"
               >
@@ -159,10 +159,10 @@ export const CardView: React.FC<CardProps> = ({
                 className="text-xs sm:text-sm md:text-base font-black leading-none font-mono"
                 style={{ color: theme.text }}
               >
-                {value !== undefined ? (value < 0 ? `${value}` : value) : '?'}
+                {isRevealed && value !== undefined ? (value < 0 ? `${value}` : value) : '?'}
               </span>
             </div>
-            <div>{renderActionIcon(12)}</div>
+            <div>{isRevealed ? renderActionIcon(12) : null}</div>
           </div>
         </div>
       </div>

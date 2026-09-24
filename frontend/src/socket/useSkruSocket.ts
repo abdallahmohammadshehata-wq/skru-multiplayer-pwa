@@ -72,6 +72,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
     const isGameOver = session.isGameOver;
 
     const sanitizedPlayers = session.players.map((p) => {
+      const isMe = p.id === myId;
       return {
         id: p.id,
         name: p.name,
@@ -84,16 +85,19 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
         isHost: p.isHost,
         isFrozen: p.isFrozen,
         cardCount: p.hand.length,
-        // Hand contains all card values for gameplay display
-        hand: p.hand.map((c) => ({
-          id: c.id,
-          isFaceUp: c.isFaceUp || isRoundOver,
-          value: c.value,
-          action: c.action,
-          labelAr: c.labelAr,
-          labelEn: c.labelEn,
-          color: c.color
-        }))
+        // Hand contains card values safely (opponents' face-down cards are masked)
+        hand: p.hand.map((c) => {
+          const isCardRevealed = c.isFaceUp || isRoundOver;
+          return {
+            id: c.id,
+            isFaceUp: isCardRevealed,
+            value: isCardRevealed || isMe ? c.value : undefined,
+            action: isCardRevealed || isMe ? c.action : 'NONE',
+            labelAr: isCardRevealed || isMe ? c.labelAr : undefined,
+            labelEn: isCardRevealed || isMe ? c.labelEn : undefined,
+            color: isCardRevealed || isMe ? c.color : undefined
+          };
+        })
       };
     });
 

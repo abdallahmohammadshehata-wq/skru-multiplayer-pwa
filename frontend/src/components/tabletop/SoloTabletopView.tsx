@@ -667,7 +667,7 @@ export const SoloTabletopView: React.FC = () => {
           {humanPlayer.hand.map((c, idx) => {
             const isBottomTwoInitial = initialPeekTimer > 0 && idx >= 2;
             const isCardFaceUp = c.isFaceUp || session.isRoundOver || isBottomTwoInitial;
-            const isTargetableForAction = isPendingAction && session.pendingAction?.type === 'PEEK_OWN';
+            const isTargetableForAction = isPendingAction && (session.pendingAction?.type === 'PEEK_OWN' || session.pendingAction?.type === 'PEEK_ALL');
 
             return (
               <div key={c.id || idx} className="relative flex flex-col items-center">

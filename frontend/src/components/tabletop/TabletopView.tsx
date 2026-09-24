@@ -592,7 +592,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
               {myPlayer.hand.map((card, idx) => {
                 const isBottomTwoInitial = initialPeekTimer > 0 && (idx === 2 || idx === 3);
                 const isCardFaceUp = card.isFaceUp || isRoundOver || isBottomTwoInitial;
-                const isTargetableForAction = isActionPending && gameState.pendingActionSummary?.type === 'PEEK_OWN';
+                const isTargetableForAction = isActionPending && (gameState.pendingActionSummary?.type === 'PEEK_OWN' || gameState.pendingActionSummary?.type === 'PEEK_ALL');
 
                 return (
                   <div key={card.id || idx} className="relative flex flex-col items-center">
