@@ -3,7 +3,7 @@ import { Users, Crown, Copy, Check, Shield, Sparkles, Clock, ArrowRight, Play, U
 import { useTranslation } from '../../i18n/I18nContext';
 import { GameVariant } from '../../types';
 import { sound } from '../../utils/audio';
-import type { DebugInfo } from '../../socket/networkEngine';
+import { type DebugInfo, normalizeRoomCode } from '../../socket/networkEngine';
 
 const AVATARS = ['🦁', '🦊', '🐯', '🐺', '🦅', '🐼', '👑', '🚀', '💎', '🎯', '⚡', '☕'];
 
@@ -45,6 +45,19 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [passcodeInput, setPasscodeInput] = useState<string>('');
   const [teamSelection, setTeamSelection] = useState<'A' | 'B'>('A');
 
+  // Auto-fill from ?room= URL parameter if present
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('room');
+      if (roomParam) {
+        const clean = normalizeRoomCode(roomParam);
+        setRoomCodeInput(clean);
+        setActiveTab('JOIN');
+      }
+    }
+  }, []);
+
   // Create room options
   const [variant, setVariant] = useState<GameVariant>('CLASSIC');
   const [pointsCap, setPointsCap] = useState<number>(100);
@@ -57,12 +70,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     localStorage.setItem('skru_player_avatar', avatar);
   };
 
-  const handleJoin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!roomCodeInput.trim()) return;
+  const handleJoin = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanCode = normalizeRoomCode(roomCodeInput);
+    if (!cleanCode) return;
     saveProfile();
     sound.playCardFlip();
-    onJoinRoom(roomCodeInput.toUpperCase().trim(), name.trim() || 'Player', avatar, passcodeInput, teamSelection);
+    onJoinRoom(cleanCode, name.trim() || 'Player', avatar, passcodeInput, teamSelection);
   };
 
   const handleCreate = (e: React.FormEvent) => {
@@ -273,36 +287,72 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <span className="px-4 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/30 text-amber-300 font-mono text-sm font-black">
               {roomCodeInput || 'SKRU'}
             </span>
+
+            {onClearJoinError && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playCardSlide();
+                  onClearJoinError();
+                }}
+                className="mt-2 text-xs text-slate-400 hover:text-white underline font-bold"
+              >
+                {language === 'ar' ? 'إلغاء البحث والعودة' : 'Cancel & Return'}
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {/* Join Error Banner */}
       {joinError && (
-        <div className="p-4 rounded-2xl bg-red-950/80 border-2 border-red-500/50 shadow-2xl flex items-start justify-between gap-3 text-white animate-fadeIn">
-          <div>
-            <div className="text-sm font-black text-red-300 flex items-center gap-2 mb-0.5">
-              <span>⚠️</span>
-              <span>{language === 'ar' ? 'تعذر الانضمام للغرفة' : 'Unable to Join Room'}</span>
+        <div className="p-4 rounded-2xl bg-red-950/90 border-2 border-red-500/60 shadow-2xl flex flex-col gap-3 text-white animate-fadeIn">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-black text-red-300 flex items-center gap-2 mb-0.5">
+                <span>⚠️</span>
+                <span>{language === 'ar' ? 'تعذر الانضمام للغرفة' : 'Unable to Join Room'}</span>
+              </div>
+              <p className="text-xs text-red-200 leading-relaxed">
+                {joinError === 'HOST_NOT_FOUND' 
+                  ? (language === 'ar' 
+                      ? 'لم يتم العثور على المضيف بهذا الرمز. تأكد أن المضيف قد أنشأ الغرفة بنفس الكود (5 أحرف).' 
+                      : 'Room host not found for this code. Make sure the host has created the room with this exact 5-character code.')
+                  : (language === 'ar'
+                      ? 'حدث خطأ في شبكة الاتصال. يرجى المحاولة مجدداً.'
+                      : 'Network error occurred. Please try again.')}
+              </p>
             </div>
-            <p className="text-xs text-red-200">
-              {joinError === 'HOST_NOT_FOUND' 
-                ? (language === 'ar' 
-                    ? 'لم يتم العثور على المضيف بهذا الكود. تأكد أن المضيف قد أنشأ الغرفة بنفس الكود (5 أحرف).' 
-                    : 'Room host not found for this code. Make sure the host has created the room with this exact 5-character code.')
-                : (language === 'ar'
-                    ? 'حدث خطأ في شبكة الاتصال. يرجى المحاولة مجدداً.'
-                    : 'Network error occurred. Please try again.')}
-            </p>
+            {onClearJoinError && (
+              <button
+                onClick={onClearJoinError}
+                className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex-shrink-0"
+              >
+                ✕
+              </button>
+            )}
           </div>
-          {onClearJoinError && (
+
+          <div className="flex items-center gap-2 pt-1 border-t border-red-500/20">
             <button
-              onClick={onClearJoinError}
-              className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex-shrink-0"
+              type="button"
+              onClick={() => handleJoin()}
+              className="py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-black border border-amber-500/30 flex items-center gap-1.5 transition-all active:scale-95"
             >
-              ✕
+              <span>🔄</span>
+              <span>{language === 'ar' ? 'إعادة المحاولة' : 'Try Again'}</span>
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('CREATE');
+                onClearJoinError?.();
+              }}
+              className="py-1.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+            >
+              <span>{language === 'ar' ? 'إنشاء غرفة جديدة' : 'Create New Room'}</span>
+            </button>
+          </div>
         </div>
       )}
 

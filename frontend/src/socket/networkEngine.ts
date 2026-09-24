@@ -1,10 +1,9 @@
 /**
  * NetworkEngine – Zero-config multiplayer rooms via public WSS MQTT brokers.
  *
- * Uses the mqtt.js **pre-built browser bundle** loaded from CDN so that
- * Buffer / process polyfills are included automatically.  The npm `mqtt`
- * package's ESM browser build still references Node globals that Vite
- * doesn't polyfill, which silently breaks WebSocket connections at runtime.
+ * Provides high-availability serverless multi-device room synchronization
+ * with local pre-bundled mqtt vendor script, multi-broker automatic failover,
+ * automatic resubscription on reconnect, and persistent heartbeat presence.
  */
 
 export interface NetworkMessage {
@@ -16,75 +15,88 @@ export interface NetworkMessage {
 
 export type NetworkMessageHandler = (msg: NetworkMessage) => void;
 
-// ---------- CDN MQTT loader ----------
+export function normalizeRoomCode(code: string): string {
+  let clean = (code || '').toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+  if (clean.startsWith('SKRU') && clean.length > 4) {
+    clean = clean.replace(/^SKRU/, '');
+  }
+  return clean;
+}
+
+// ---------- MQTT Loader with local vendor & CDN fallbacks ----------
 
 let _mqttLib: any = null;
 let _mqttLoading: Promise<any> | null = null;
 
-/**
- * Dynamically load the mqtt.js browser bundle from CDN.
- * Returns the global `mqtt` object (same API as `import mqtt from 'mqtt'`).
- */
-function loadMqtt(): Promise<any> {
+export function loadMqtt(): Promise<any> {
   if (_mqttLib) return Promise.resolve(_mqttLib);
+  if (typeof window !== 'undefined' && (window as any).mqtt) {
+    _mqttLib = (window as any).mqtt;
+    return Promise.resolve(_mqttLib);
+  }
   if (_mqttLoading) return _mqttLoading;
 
   _mqttLoading = new Promise<any>((resolve, reject) => {
-    // Already loaded by another path?
-    if ((window as any).mqtt) {
-      _mqttLib = (window as any).mqtt;
-      resolve(_mqttLib);
-      return;
-    }
+    const sources = [
+      './vendor/mqtt.min.js',
+      'https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js',
+      'https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js'
+    ];
 
-    const script = document.createElement('script');
-    // Use jsDelivr CDN – pre-built browser bundle with all polyfills
-    script.src = 'https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js';
-    script.crossOrigin = 'anonymous';
+    let currentSourceIdx = 0;
 
-    script.onload = () => {
-      _mqttLib = (window as any).mqtt;
-      if (_mqttLib) {
-        console.log('[NetworkEngine] ✅ mqtt.js loaded from CDN');
-        resolve(_mqttLib);
-      } else {
-        reject(new Error('mqtt global not found after CDN load'));
-      }
-    };
-
-    script.onerror = () => {
-      console.warn('[NetworkEngine] CDN load failed, trying fallback CDN...');
-      // Fallback to unpkg
-      const fallback = document.createElement('script');
-      fallback.src = 'https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js';
-      fallback.crossOrigin = 'anonymous';
-      fallback.onload = () => {
+    function tryLoadNext() {
+      if (typeof window !== 'undefined' && (window as any).mqtt) {
         _mqttLib = (window as any).mqtt;
-        if (_mqttLib) {
-          console.log('[NetworkEngine] ✅ mqtt.js loaded from fallback CDN');
+        console.log('[NetworkEngine] ✅ mqtt.js loaded');
+        resolve(_mqttLib);
+        return;
+      }
+
+      if (currentSourceIdx >= sources.length) {
+        reject(new Error('All MQTT library sources failed to load'));
+        return;
+      }
+
+      const src = sources[currentSourceIdx++];
+      const script = document.createElement('script');
+      script.src = src;
+      script.crossOrigin = 'anonymous';
+
+      script.onload = () => {
+        if ((window as any).mqtt) {
+          _mqttLib = (window as any).mqtt;
+          console.log(`[NetworkEngine] ✅ mqtt.js loaded from ${src}`);
           resolve(_mqttLib);
         } else {
-          reject(new Error('mqtt global not found after fallback CDN load'));
+          tryLoadNext();
         }
       };
-      fallback.onerror = () => reject(new Error('All MQTT CDN sources failed'));
-      document.head.appendChild(fallback);
-    };
 
-    document.head.appendChild(script);
+      script.onerror = () => {
+        console.warn(`[NetworkEngine] Source ${src} failed, trying next...`);
+        tryLoadNext();
+      };
+
+      document.head.appendChild(script);
+    }
+
+    tryLoadNext();
   });
 
   return _mqttLoading;
 }
 
-// ---------- Broker config ----------
+// ---------- Multi-broker public servers ----------
 
 const BROKER_SERVERS = [
   'wss://broker.emqx.io:8084/mqtt',
-  'wss://broker.hivemq.com:8884/mqtt'
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://test.mosquitto.org:8081',
+  'wss://public.mqtthq.com:8084/mqtt'
 ];
 
-// ---------- Debug status (visible in UI) ----------
+// ---------- Debug status ----------
 
 export type ConnectionStatus =
   | 'IDLE'
@@ -106,7 +118,7 @@ export interface DebugInfo {
   messagesReceived: number;
 }
 
-// ---------- NetworkEngine ----------
+// ---------- NetworkEngine Implementation ----------
 
 export class NetworkEngine {
   private client: any = null;
@@ -129,7 +141,6 @@ export class NetworkEngine {
     this.clientId = 'skru_' + Math.random().toString(36).substring(2, 10);
   }
 
-  /** Subscribe to debug status changes (for UI display). */
   public onStatusChange(fn: () => void): () => void {
     this._statusListeners.add(fn);
     return () => this._statusListeners.delete(fn);
@@ -170,29 +181,27 @@ export class NetworkEngine {
         console.error('[NetworkEngine] Handler error:', err);
       }
     }
-    this.setDebugStatus(this._debugStatus); // trigger UI refresh for counter
+    this.setDebugStatus(this._debugStatus);
   }
 
-  private getTopic(roomCode: string): string {
-    const clean = roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  public getTopic(roomCode: string): string {
+    const clean = normalizeRoomCode(roomCode);
     return `skru/egypt_v3/${clean}`;
   }
 
   /**
-   * Connect to an MQTT broker with automatic fallback.
+   * Connect to an MQTT broker with automatic failover.
    */
   private async connectBroker(brokerIndex: number = 0): Promise<any> {
-    // Step 1: Load mqtt.js from CDN
     this.setDebugStatus('LOADING_LIB');
     let mqttLib: any;
     try {
       mqttLib = await loadMqtt();
     } catch (e: any) {
-      this.setDebugStatus('ERROR', '', `CDN load failed: ${e.message}`);
+      this.setDebugStatus('ERROR', '', `Library load failed: ${e.message}`);
       throw e;
     }
 
-    // Step 2: Connect to broker
     return new Promise((resolve, reject) => {
       if (this.client && this.client.connected) {
         this.setDebugStatus('READY');
@@ -208,13 +217,15 @@ export class NetworkEngine {
         const client = mqttLib.connect(brokerUrl, {
           clientId: this.clientId,
           clean: true,
-          connectTimeout: 6000,
-          reconnectPeriod: 3000,
+          connectTimeout: 5000,
+          reconnectPeriod: 2500,
           keepalive: 30
         });
 
+        let isResolved = false;
+
         const timeout = setTimeout(() => {
-          if (!client.connected) {
+          if (!client.connected && !isResolved) {
             console.warn(`[NetworkEngine] Broker ${brokerUrl} timed out.`);
             try { client.end(true); } catch (_) {}
             if (brokerIndex + 1 < BROKER_SERVERS.length) {
@@ -224,14 +235,28 @@ export class NetworkEngine {
               reject(new Error('All MQTT brokers unreachable'));
             }
           }
-        }, 7000);
+        }, 5500);
 
         client.on('connect', () => {
           clearTimeout(timeout);
+          isResolved = true;
           this.isConnected = true;
           this.client = client;
           this.setDebugStatus('CONNECTED', brokerUrl);
           console.log(`[NetworkEngine] ✅ Connected to ${brokerUrl}`);
+
+          // Critical: Always re-subscribe on connect / reconnect
+          if (this.currentTopic) {
+            client.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
+              if (err) {
+                console.error('[NetworkEngine] Subscribe error on connect:', err);
+              } else {
+                console.log(`[NetworkEngine] ✅ Subscribed to: ${this.currentTopic}`);
+                this.setDebugStatus('READY');
+              }
+            });
+          }
+
           resolve(client);
         });
 
@@ -283,13 +308,12 @@ export class NetworkEngine {
   public async hostRoom(roomCode: string): Promise<string> {
     this.destroy();
     this.isHost = true;
-    this.roomCode = roomCode.toUpperCase().trim();
+    this.roomCode = normalizeRoomCode(roomCode);
     this.currentTopic = this.getTopic(this.roomCode);
 
     try {
       const client = await this.connectBroker(0);
 
-      // Subscribe and wait for confirmation
       await new Promise<void>((resolve, reject) => {
         this.setDebugStatus('SUBSCRIBING');
         client.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
@@ -305,13 +329,13 @@ export class NetworkEngine {
         });
       });
 
-      // Heartbeat
+      // Periodic Host Heartbeat
       this.heartbeatTimer = setInterval(() => {
         this.send('ROOM_HEARTBEAT', {
           roomCode: this.roomCode,
           hostClientId: this.clientId
         });
-      }, 3500);
+      }, 2500);
 
       return this.roomCode;
     } catch (e: any) {
@@ -332,13 +356,12 @@ export class NetworkEngine {
   ): Promise<boolean> {
     this.destroy();
     this.isHost = false;
-    this.roomCode = roomCode.toUpperCase().trim();
+    this.roomCode = normalizeRoomCode(roomCode);
     this.currentTopic = this.getTopic(this.roomCode);
 
     try {
       const client = await this.connectBroker(0);
 
-      // Subscribe and wait
       await new Promise<void>((resolve, reject) => {
         this.setDebugStatus('SUBSCRIBING');
         client.subscribe(this.currentTopic, { qos: 0 }, (err: any) => {
@@ -355,27 +378,26 @@ export class NetworkEngine {
 
       let responseReceived = false;
 
-      // Listen for host response
       const unsubscribe = this.onMessage((msg) => {
-        if (msg.event === 'LOBBY_STATE' || msg.event === 'ROOM_HEARTBEAT') {
+        if (msg.event === 'LOBBY_STATE' || msg.event === 'GAME_STATE' || msg.event === 'ROOM_HEARTBEAT' || msg.event === 'JOIN_ACK') {
           if (!responseReceived) {
             responseReceived = true;
             if (this.joinRetryTimer) clearInterval(this.joinRetryTimer);
             unsubscribe();
-            console.log(`[NetworkEngine Client] ✅ Host found! Event: ${msg.event}`);
+            console.log(`[NetworkEngine Client] ✅ Host acknowledged! Event: ${msg.event}`);
             if (onSuccess) onSuccess();
           }
         }
       });
 
-      // Send JOIN_ROOM
+      // Send initial JOIN_ROOM
       this.send('JOIN_ROOM', {
         ...playerInfo,
         roomCode: this.roomCode,
         clientSenderId: this.clientId
       });
 
-      // Retry up to 5 times
+      // Retry up to 8 times (~10 seconds)
       let attempts = 0;
       this.joinRetryTimer = setInterval(() => {
         attempts++;
@@ -383,20 +405,20 @@ export class NetworkEngine {
           clearInterval(this.joinRetryTimer);
           return;
         }
-        if (attempts >= 5) {
+        if (attempts >= 8) {
           clearInterval(this.joinRetryTimer);
           unsubscribe();
-          console.warn('[NetworkEngine Client] ❌ Host not found after 5 retries');
+          console.warn('[NetworkEngine Client] ❌ Host not found after 8 retries');
           if (onFailed) onFailed('HOST_NOT_FOUND');
         } else {
-          console.log(`[NetworkEngine] Retry JOIN_ROOM (${attempts + 1}/5)...`);
+          console.log(`[NetworkEngine] Retry JOIN_ROOM (${attempts + 1}/8)...`);
           this.send('JOIN_ROOM', {
             ...playerInfo,
             roomCode: this.roomCode,
             clientSenderId: this.clientId
           });
         }
-      }, 1500);
+      }, 1200);
 
       return true;
     } catch (e: any) {

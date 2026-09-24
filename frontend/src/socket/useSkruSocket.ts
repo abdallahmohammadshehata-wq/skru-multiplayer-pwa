@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { SanitizedGameState, Card, GameVariant } from '../types';
 import { LocalGameSession } from '../engine/localGameEngine';
-import { networkEngine, DebugInfo } from './networkEngine';
+import { networkEngine, DebugInfo, normalizeRoomCode } from './networkEngine';
 
 export interface UseSkruSocketReturn {
   isConnected: boolean;
@@ -152,7 +152,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
           setIsJoiningRoom(false);
           setJoinError(null);
         } else if (type === 'GAME_STATE') {
-          setGameState(payload);
+          setGameState({ ...payload, yourPlayerId: myPlayerIdRef.current });
+          setIsJoiningRoom(false);
+          setJoinError(null);
         } else if (type === 'CHAT_MESSAGE') {
           setChatMessages(prev => [...prev.slice(-25), payload]);
         } else if (type === 'EMOJI_REACTION') {
@@ -164,7 +166,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
         } else if (type === 'JOIN_ROOM_REQUEST') {
           // Host tab receives join request from another tab on same browser
           const currentLobby = localLobbyRef.current;
-          if (currentLobby && currentLobby.roomCode === payload.roomCode) {
+          if (currentLobby && normalizeRoomCode(currentLobby.roomCode) === normalizeRoomCode(payload.roomCode)) {
             const newPlayer = {
               id: payload.playerId,
               name: payload.name || 'Player',
@@ -210,7 +212,6 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
         const wsProto = isHttps ? 'wss:' : 'ws:';
         url = `${wsProto}//${window.location.host}/ws`;
       } else {
-        // In GitHub Pages, do not force fail local websocket
         return;
       }
     }
@@ -234,6 +235,8 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
           switch (msg.event) {
             case 'GAME_STATE':
               setGameState(msg.payload);
+              setIsJoiningRoom(false);
+              setJoinError(null);
               break;
             case 'LOBBY_STATE':
               setLobbyState(msg.payload);
@@ -293,7 +296,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
 
     switch (event) {
       case 'CREATE_ROOM': {
-        const roomCode = generateRoomCode();
+        const roomCode = payload.roomCode ? normalizeRoomCode(payload.roomCode) : generateRoomCode();
         const hostPlayer = {
           id: payload.playerId || myId,
           name: payload.name || 'الفرعون',
@@ -334,7 +337,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
 
       case 'JOIN_ROOM': {
         const { roomCode, playerId, name, avatar, team } = payload;
-        const cleanCode = (roomCode || '').toUpperCase().trim();
+        const cleanCode = normalizeRoomCode(roomCode);
         if (!cleanCode) return;
 
         setIsJoiningRoom(true);
@@ -358,7 +361,6 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
             team
           },
           () => {
-            // Host responded
             setIsJoiningRoom(false);
             setJoinError(null);
           },
@@ -481,7 +483,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
             status: 'ACTION_PENDING',
             pendingActionSummary: {
               type: discarded.action,
-              initiatorId: myId,
+              initiatorId: payload.playerId || myId,
               expiresInSeconds: 15,
               stage: 'SELECT_TARGET'
             }
@@ -618,11 +620,16 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
             const currentLobby = localLobbyRef.current;
             if (!currentLobby) return;
 
+            const targetRoomCode = normalizeRoomCode(payload.roomCode || '');
+            if (targetRoomCode && targetRoomCode !== normalizeRoomCode(currentLobby.roomCode)) {
+              return;
+            }
+
             const newPlayer = {
               id: payload.playerId || `p_${Date.now()}`,
               name: payload.name || 'Player',
               avatar: payload.avatar || '🦁',
-              team: currentLobby.options.variant === 'SAHEB_SA7BO' ? (payload.team || (currentLobby.players.length % 2 === 0 ? 'A' : 'B')) : undefined,
+              team: currentLobby.options?.variant === 'SAHEB_SA7BO' ? (payload.team || (currentLobby.players.length % 2 === 0 ? 'A' : 'B')) : undefined,
               connected: true,
               isHost: false
             };
@@ -644,7 +651,13 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
             localLobbyRef.current = updatedLobby;
             setLobbyState(updatedLobby);
 
-            // Send updated lobby state to all players
+            // Send acknowledge and updated lobby state to all players
+            networkEngine.send('JOIN_ACK', {
+              roomCode: updatedLobby.roomCode,
+              playerId: newPlayer.id,
+              hostId: updatedLobby.hostId
+            });
+
             networkEngine.send('LOBBY_STATE', updatedLobby);
             if (broadcastChannelRef.current) {
               broadcastChannelRef.current.postMessage({ type: 'LOBBY_STATE', payload: updatedLobby });
@@ -687,6 +700,13 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
       } else {
         // CLIENT RECEIVING MESSAGES FROM HOST
         switch (event) {
+          case 'JOIN_ACK': {
+            if (payload?.playerId === myPlayerIdRef.current || !payload?.playerId) {
+              setIsJoiningRoom(false);
+              setJoinError(null);
+            }
+            break;
+          }
           case 'LOBBY_STATE': {
             localLobbyRef.current = payload;
             setLobbyState(payload);
@@ -695,7 +715,9 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
             break;
           }
           case 'GAME_STATE': {
-            setGameState(payload);
+            setGameState({ ...payload, yourPlayerId: myPlayerIdRef.current });
+            setIsJoiningRoom(false);
+            setJoinError(null);
             break;
           }
           case 'PEEK_REVEAL': {
