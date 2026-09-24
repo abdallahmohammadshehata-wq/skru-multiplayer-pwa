@@ -2,6 +2,9 @@
 
 A modern, full-stack Progressive Web App (PWA) and real-time WebSocket game engine for **"Skru" (سكرو / Screw)**, the popular Egyptian and Middle Eastern bluffing and memory card game.
 
+- 🌐 **Live Public App (GitHub Pages)**: [https://abdallahmohammadshehata-wq.github.io/skru-multiplayer-pwa/](https://abdallahmohammadshehata-wq.github.io/skru-multiplayer-pwa/)
+- 📦 **GitHub Repository**: [https://github.com/abdallahmohammadshehata-wq/skru-multiplayer-pwa](https://github.com/abdallahmohammadshehata-wq/skru-multiplayer-pwa)
+
 ---
 
 ## 🌟 Key Features & Operational Modes
