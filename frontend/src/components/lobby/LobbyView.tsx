@@ -107,14 +107,14 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     const is2v2 = lobbyState.options?.variant === 'SAHEB_SA7BO';
 
     return (
-      <div className="w-full max-w-2xl mx-auto p-4 flex flex-col gap-5">
+      <div className="w-full max-w-2xl mx-auto p-3 sm:p-4 pb-28 sm:pb-32 flex flex-col gap-4 sm:gap-5">
         {/* Room Header Card */}
-        <div className="glass-panel p-6 text-center flex flex-col items-center relative overflow-hidden border-2 border-amber-400/30 shadow-2xl">
+        <div className="glass-panel p-4 sm:p-6 text-center flex flex-col items-center relative overflow-hidden border-2 border-amber-400/30 shadow-2xl">
           <span className="text-xs font-black text-amber-400 uppercase tracking-widest mb-1">
             {t('lobby.room_code')}
           </span>
           <div className="flex items-center gap-3">
-            <span className="text-4xl sm:text-5xl font-black text-amber-400 tracking-wider font-mono drop-shadow">
+            <span className="text-3xl sm:text-5xl font-black text-amber-400 tracking-wider font-mono drop-shadow">
               {lobbyState.roomCode}
             </span>
             <button
@@ -253,7 +253,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
   // Lobby Home Screen (Join / Create Tabs)
   return (
-    <div className="w-full max-w-xl mx-auto p-4 flex flex-col gap-4 relative">
+    <div className="w-full max-w-xl mx-auto p-3 sm:p-4 pb-28 sm:pb-32 flex flex-col gap-3.5 sm:gap-4 relative">
       {/* Network Debug Status */}
       {networkDebug && networkDebug.status !== 'IDLE' && (
         <div className={`flex items-center gap-2 text-[10px] font-bold px-3 py-1.5 rounded-xl ${
@@ -370,7 +370,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       )}
 
       {/* Network Connection Indicator */}
-      <div className="glass-panel px-4 py-2.5 flex items-center justify-between border-white/10 shadow-md">
+      <div className="glass-panel px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between border-white/10 shadow-md">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-black text-white flex items-center gap-1.5">
@@ -388,18 +388,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       </div>
 
       {/* Profile Card (Name & Avatar Picker) */}
-      <div className="glass-panel p-5 sm:p-6 flex flex-col gap-4 border border-white/10 shadow-2xl">
+      <div className="glass-panel p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 border border-white/10 shadow-2xl">
         <span className="text-xs font-black text-amber-400 uppercase tracking-widest">
           {language === 'ar' ? 'ملف اللاعب' : 'Player Profile'}
         </span>
 
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-emerald-500 p-0.5 shadow-lg shadow-amber-500/20 flex-shrink-0">
-            <div className="w-full h-full rounded-2xl bg-[#082216] flex items-center justify-center text-3xl">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-emerald-500 p-0.5 shadow-lg shadow-amber-500/20 flex-shrink-0">
+            <div className="w-full h-full rounded-2xl bg-[#082216] flex items-center justify-center text-2xl sm:text-3xl">
               {avatar}
             </div>
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <label className="text-xs font-bold text-slate-300 block mb-1">
               {t('lobby.your_name')}
             </label>
@@ -409,25 +409,25 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               onChange={e => setName(e.target.value)}
               placeholder={language === 'ar' ? 'اسمك في اللعبة...' : 'Your player name...'}
               maxLength={14}
-              className="input-field"
+              className="input-field py-2 sm:py-3 text-sm font-bold"
             />
           </div>
         </div>
 
-        {/* Avatar Selection Carousel */}
+        {/* Avatar Selection Grid */}
         <div>
-          <span className="text-xs font-bold text-slate-400 block mb-2">
+          <span className="text-xs font-bold text-slate-400 block mb-1.5">
             {t('lobby.choose_avatar')}
           </span>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
             {AVATARS.map(av => (
               <button
                 key={av}
                 type="button"
                 onClick={() => { sound.playCardFlip(); setAvatar(av); }}
-                className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 transition-all ${
+                className={`w-full aspect-square rounded-xl flex items-center justify-center text-lg sm:text-xl transition-all ${
                   avatar === av 
-                    ? 'bg-amber-500/30 border-2 border-amber-400 scale-110 shadow-lg' 
+                    ? 'bg-amber-500/30 border-2 border-amber-400 scale-105 shadow-lg' 
                     : 'bg-white/5 border border-white/10 hover:bg-white/10'
                 }`}
               >
