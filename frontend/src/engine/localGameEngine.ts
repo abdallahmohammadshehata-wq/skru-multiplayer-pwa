@@ -270,13 +270,14 @@ export class LocalGameSession {
 
     switch (actionType) {
       case 'PEEK_OWN': {
-        if (payload.ownCardIndex !== undefined && player.hand[payload.ownCardIndex]) {
-          const card = player.hand[payload.ownCardIndex];
-          player.knownCards[payload.ownCardIndex] = card.value;
+        const ownIdx = payload.ownCardIndex ?? payload.myCardIndex;
+        if (ownIdx !== undefined && player.hand[ownIdx]) {
+          const card = player.hand[ownIdx];
+          player.knownCards[ownIdx] = card.value;
           this.addLog(`كشف ${player.name} كارت من كروته الخاصة.`, `${player.name} peeked at their own card.`);
           this.pendingAction = null;
           this.advanceTurn();
-          return { success: true, revealedCard: card };
+          return { success: true, revealedCard: { ...card, isFaceUp: true } };
         }
         break;
       }
@@ -289,7 +290,7 @@ export class LocalGameSession {
           this.addLog(`كشف ${player.name} كارت من أوراق ${targetPlayer.name} (بصرة).`, `${player.name} peeked at a card from ${targetPlayer.name}.`);
           this.pendingAction = null;
           this.advanceTurn();
-          return { success: true, revealedCard: card };
+          return { success: true, revealedCard: { ...card, isFaceUp: true } };
         }
         break;
       }
@@ -297,20 +298,21 @@ export class LocalGameSession {
       case 'SWAP': {
         const targetIdx = payload.targetPlayerIndex ?? 1;
         const targetPlayer = this.players[targetIdx];
+        const myIdx = payload.myCardIndex ?? payload.ownCardIndex;
         if (
           targetPlayer &&
-          payload.myCardIndex !== undefined &&
+          myIdx !== undefined &&
           payload.targetCardIndex !== undefined &&
-          player.hand[payload.myCardIndex] &&
+          player.hand[myIdx] &&
           targetPlayer.hand[payload.targetCardIndex]
         ) {
-          const myCard = player.hand[payload.myCardIndex];
+          const myCard = player.hand[myIdx];
           const oppCard = targetPlayer.hand[payload.targetCardIndex];
 
-          player.hand[payload.myCardIndex] = oppCard;
+          player.hand[myIdx] = oppCard;
           targetPlayer.hand[payload.targetCardIndex] = myCard;
 
-          player.knownCards[payload.myCardIndex] = null;
+          player.knownCards[myIdx] = null;
           targetPlayer.knownCards[payload.targetCardIndex] = null;
 
           this.addLog(`بدّل ${player.name} كارت مع ${targetPlayer.name} (هات وخد).`, `${player.name} swapped a card with ${targetPlayer.name}.`);
@@ -322,7 +324,7 @@ export class LocalGameSession {
       }
 
       case 'PEEK_AND_SWAP': {
-        const targetIdx = payload.targetPlayerIndex ?? 1;
+        const targetIdx = payload.targetPlayerIndex ?? this.pendingAction.targetPlayerIndex ?? 1;
         const targetPlayer = this.players[targetIdx];
         if (this.pendingAction.stage === 'SELECT_TARGET') {
           if (targetPlayer && payload.targetCardIndex !== undefined && targetPlayer.hand[payload.targetCardIndex]) {
@@ -332,18 +334,20 @@ export class LocalGameSession {
             this.pendingAction.targetCardIndex = payload.targetCardIndex;
             this.pendingAction.revealedCard = card;
             if (this.onStateChange) this.onStateChange();
-            return { success: true, revealedCard: card };
+            return { success: true, revealedCard: { ...card, isFaceUp: true } };
           }
         } else if (this.pendingAction.stage === 'CHOOSE_SWAP') {
-          if (payload.chooseSwap && payload.myCardIndex !== undefined && this.pendingAction.targetCardIndex !== undefined) {
-            const myCard = player.hand[payload.myCardIndex];
-            const oppCard = targetPlayer.hand[this.pendingAction.targetCardIndex];
+          const myIdx = payload.myCardIndex ?? payload.ownCardIndex;
+          const targetCardIdx = this.pendingAction.targetCardIndex;
+          if (payload.chooseSwap && myIdx !== undefined && targetCardIdx !== undefined && targetPlayer && targetPlayer.hand[targetCardIdx] && player.hand[myIdx]) {
+            const myCard = player.hand[myIdx];
+            const oppCard = targetPlayer.hand[targetCardIdx];
 
-            player.hand[payload.myCardIndex] = oppCard;
-            targetPlayer.hand[this.pendingAction.targetCardIndex] = myCard;
+            player.hand[myIdx] = oppCard;
+            targetPlayer.hand[targetCardIdx] = myCard;
 
-            player.knownCards[payload.myCardIndex] = oppCard.value;
-            targetPlayer.knownCards[this.pendingAction.targetCardIndex] = null;
+            player.knownCards[myIdx] = oppCard.value;
+            targetPlayer.knownCards[targetCardIdx] = null;
 
             this.addLog(`اختار ${player.name} تبديل الكارت بعد رؤيته مع ${targetPlayer.name}!`, `${player.name} swapped after peeking with ${targetPlayer.name}!`);
           } else {
@@ -389,13 +393,13 @@ export class LocalGameSession {
 
       case 'PEEK_ALL': {
         const allRevealedCards: Array<{ playerName: string; avatar?: string; card: Card; isOwn: boolean }> = [];
-        const ownIdx = payload.ownCardIndex ?? 0;
+        const ownIdx = payload.ownCardIndex ?? payload.myCardIndex ?? 0;
         if (player.hand[ownIdx]) {
           player.knownCards[ownIdx] = player.hand[ownIdx].value;
           allRevealedCards.push({
             playerName: player.name,
             avatar: player.avatar,
-            card: player.hand[ownIdx],
+            card: { ...player.hand[ownIdx], isFaceUp: true },
             isOwn: true
           });
         }
@@ -406,7 +410,7 @@ export class LocalGameSession {
             allRevealedCards.push({
               playerName: opp.name,
               avatar: opp.avatar,
-              card: opp.hand[oppCardIdx],
+              card: { ...opp.hand[oppCardIdx], isFaceUp: true },
               isOwn: false
             });
           }
@@ -581,7 +585,7 @@ export class LocalGameSession {
 
     // If current player is AI, trigger auto play
     if (this.players[this.currentTurnIndex].isAi && !this.isRoundOver) {
-      setTimeout(() => this.runAiTurn(), 700);
+      setTimeout(() => this.runAiTurn(), 1200);
     }
   }
 

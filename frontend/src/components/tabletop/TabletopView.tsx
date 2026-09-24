@@ -525,10 +525,30 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                 peekReveal.peekData?.requireSwapChoice ? (
                   <div className="flex flex-col gap-2 w-full mt-2">
                     <span className="text-xs font-bold text-amber-200">
-                      {selectedOwnCardIdx !== null 
-                        ? (language === 'ar' ? `كارتك المحدد: #${selectedOwnCardIdx + 1}` : `Selected Card: #${selectedOwnCardIdx + 1}`) 
-                        : (language === 'ar' ? 'اختر كارت من يدك بالأسفل لتبديله معه:' : 'Select one of your hand cards below to swap:')}
+                      {language === 'ar' ? 'اختر الكارت الذي تريد تبديله من يدك:' : 'Choose a card from your hand to swap:'}
                     </span>
+                    <div className="grid grid-cols-4 gap-1.5 w-full my-1">
+                      {myPlayer?.hand.map((c, hIdx) => {
+                        const isSelected = selectedOwnCardIdx === hIdx;
+                        return (
+                          <button
+                            key={hIdx}
+                            type="button"
+                            onClick={() => setSelectedOwnCardIdx(hIdx)}
+                            className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all ${
+                              isSelected 
+                                ? 'bg-amber-500/30 border-amber-400 scale-105 shadow-lg shadow-amber-500/40 text-amber-300' 
+                                : 'bg-black/50 border-white/20 hover:border-white/40 text-slate-300'
+                            }`}
+                          >
+                            <span className="text-xs font-black">#{hIdx + 1}</span>
+                            <span className="text-[10px] text-slate-400 truncate max-w-full">
+                              {c.value !== undefined ? `(${c.value})` : '❓'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                     <div className="flex gap-2 w-full mt-1">
                       <button
                         onClick={() => {
@@ -536,6 +556,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                             onExecuteAction({
                               chooseSwap: true,
                               ownCardIndex: selectedOwnCardIdx,
+                              myCardIndex: selectedOwnCardIdx,
                               targetPlayerId: selectedTargetPlayerId,
                               targetCardIndex: selectedTargetCardIdx
                             });
@@ -544,9 +565,15 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                           }
                         }}
                         disabled={selectedOwnCardIdx === null}
-                        className="flex-1 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
+                        className={`flex-1 py-2.5 rounded-xl font-black text-xs transition-all shadow ${
+                          selectedOwnCardIdx !== null
+                            ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:brightness-110 active:scale-95 animate-pulse'
+                            : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/10'
+                        }`}
                       >
-                        {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
+                        {selectedOwnCardIdx !== null 
+                          ? (language === 'ar' ? `تبديل مع كارت #${selectedOwnCardIdx + 1}` : `Swap with #${selectedOwnCardIdx + 1}`)
+                          : (language === 'ar' ? 'حدد كارت لتبديله' : 'Select Card to Swap')}
                       </button>
                       <button
                         onClick={() => {
@@ -554,9 +581,9 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                           onClearPeekReveal?.();
                           setSelectedOwnCardIdx(null);
                         }}
-                        className="flex-1 py-2 sm:py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
+                        className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
                       >
-                        {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
+                        {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Cards'}
                       </button>
                     </div>
                   </div>

@@ -541,6 +541,7 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
         const session = localSessionRef.current;
         if (!session) return;
 
+        const senderPlayerId = payload?.playerId || myId;
         const targetPlayerIndex = payload?.targetPlayerId 
           ? session.players.findIndex(p => p.id === payload.targetPlayerId)
           : (payload?.targetPlayerIndex ?? 1);
@@ -555,21 +556,40 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
         });
 
         if (result.allRevealedCards) {
-          setPeekReveal({
+          const peekPayload = {
+            targetPlayerId: senderPlayerId,
             peekData: { allRevealedCards: result.allRevealedCards, title: 'كعب داير (كروت الطاولة)' },
             durationMs: 7000
-          });
-          setTimeout(() => setPeekReveal(null), 7000);
+          };
+          if (senderPlayerId === myId) {
+            setPeekReveal(peekPayload);
+            setTimeout(() => setPeekReveal(null), 7000);
+          }
+          if (networkEngine.isHost) {
+            networkEngine.send('PEEK_REVEAL', peekPayload);
+          }
         } else if (result.revealedCard) {
           const isSwapChoice = session.pendingAction?.stage === 'CHOOSE_SWAP';
-          const dur = isSwapChoice ? 10000 : 4000;
-          setPeekReveal({
+          const dur = isSwapChoice ? 12000 : 4000;
+          const peekPayload = {
+            targetPlayerId: senderPlayerId,
             peekData: { card: result.revealedCard, requireSwapChoice: isSwapChoice },
             durationMs: dur
-          });
-          setTimeout(() => setPeekReveal(null), dur);
+          };
+          if (senderPlayerId === myId) {
+            setPeekReveal(peekPayload);
+            setTimeout(() => setPeekReveal(null), dur);
+          }
+          if (networkEngine.isHost) {
+            networkEngine.send('PEEK_REVEAL', peekPayload);
+          }
         } else if (payload?.chooseSwap !== undefined || payload?.skip) {
-          setPeekReveal(null);
+          if (senderPlayerId === myId) {
+            setPeekReveal(null);
+          }
+          if (networkEngine.isHost) {
+            networkEngine.send('PEEK_REVEAL', { targetPlayerId: senderPlayerId, peekData: null });
+          }
         }
 
         syncLocalGameState();
@@ -751,9 +771,15 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
             break;
           }
           case 'PEEK_REVEAL': {
-            setPeekReveal(payload);
-            const duration = payload?.durationMs || 4000;
-            setTimeout(() => setPeekReveal(null), duration);
+            if (!payload?.targetPlayerId || payload.targetPlayerId === myPlayerIdRef.current) {
+              if (payload?.peekData) {
+                setPeekReveal(payload);
+                const duration = payload?.durationMs || 4000;
+                setTimeout(() => setPeekReveal(null), duration);
+              } else {
+                setPeekReveal(null);
+              }
+            }
             break;
           }
           case 'CHAT_MESSAGE': {
