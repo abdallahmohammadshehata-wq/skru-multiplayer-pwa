@@ -25,12 +25,20 @@ export function useSkruSocket(serverUrl: string = 'ws://localhost:3001'): UseSkr
   const heartbeatIntervalRef = useRef<any>(null);
 
   const connect = useCallback(() => {
-    // Resolve dynamic host for LAN, public tunnel, or Cloud deployment
+    // Resolve dynamic host for LAN, public tunnel, GitHub Pages, or Cloud deployment
     let url = serverUrl;
     if (typeof window !== 'undefined') {
-      const isHttps = window.location.protocol === 'https:';
-      const wsProto = isHttps ? 'wss:' : 'ws:';
-      url = `${wsProto}//${window.location.host}/ws`;
+      const customWs = localStorage.getItem('skru_ws_server');
+      if (customWs) {
+        url = customWs;
+      } else if (window.location.hostname.endsWith('github.io')) {
+        // Live public WebSocket game server for GitHub Pages
+        url = 'wss://0301c2c0c9b92bea-41-38-119-57.serveousercontent.com/ws';
+      } else {
+        const isHttps = window.location.protocol === 'https:';
+        const wsProto = isHttps ? 'wss:' : 'ws:';
+        url = `${wsProto}//${window.location.host}/ws`;
+      }
     }
 
     try {
