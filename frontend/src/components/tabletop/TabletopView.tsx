@@ -59,7 +59,6 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
   const [selectedOwnCardIdx, setSelectedOwnCardIdx] = useState<number | null>(null);
   const [selectedTargetPlayerId, setSelectedTargetPlayerId] = useState<string | null>(null);
   const [selectedTargetCardIdx, setSelectedTargetCardIdx] = useState<number | null>(null);
-  const [isHoldingPeek, setIsHoldingPeek] = useState<boolean>(false);
   const [initialPeekTimer, setInitialPeekTimer] = useState<number>(6);
 
   const [activeSheet, setActiveSheet] = useState<'NONE' | 'SCOREBOARD' | 'CHAT'>('NONE');
@@ -122,7 +121,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
       return;
     }
 
-    // Toggle selection for match slap or peek
+    // Toggle selection for match slap or swap target
     setSelectedOwnCardIdx(prev => prev === idx ? null : idx);
   };
 
@@ -149,16 +148,25 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
         setSelectedTargetCardIdx(null);
       }
     } else if (actionType === 'PEEK_AND_SWAP') {
+      setSelectedTargetPlayerId(oppId);
+      setSelectedTargetCardIdx(cardIdx);
       onExecuteAction({ targetPlayerId: oppId, targetCardIndex: cardIdx });
+    } else if (actionType === 'FREEZE' || actionType === 'BOMB') {
+      onExecuteAction({ targetPlayerId: oppId });
     }
   };
 
   const handleSlap = () => {
-    if (selectedOwnCardIdx === null) return;
+    if (selectedOwnCardIdx === null || !gameState.topDiscard) return;
     sound.playCardSlide();
     triggerHaptic('heavy');
     onMatchSlap(selectedOwnCardIdx);
     setSelectedOwnCardIdx(null);
+  };
+
+  const handleSkipAction = () => {
+    sound.playCardSlide();
+    onExecuteAction({ skip: true });
   };
 
   const handleSkru = () => {
@@ -213,10 +221,43 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           </div>
         )}
 
+        {/* Action Pending Guidance Banner */}
+        {isActionPending && (
+          <div className="w-full max-w-md p-3 rounded-2xl bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 border-2 border-purple-400 shadow-2xl backdrop-blur-md flex items-center justify-between gap-2 animate-scaleIn">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">✨</span>
+              <div className="flex flex-col text-right">
+                <span className="text-xs font-black text-amber-300">
+                  {gameState.pendingActionSummary?.type === 'PEEK_OWN' && t('game.action_peek_own_guide')}
+                  {gameState.pendingActionSummary?.type === 'PEEK_OTHER' && t('game.action_peek_other_guide')}
+                  {gameState.pendingActionSummary?.type === 'SWAP' && (selectedOwnCardIdx === null ? t('game.action_swap_guide_1') : t('game.action_swap_guide_2'))}
+                  {gameState.pendingActionSummary?.type === 'PEEK_AND_SWAP' && t('game.action_peek_swap_guide')}
+                  {gameState.pendingActionSummary?.type === 'FREEZE' && (language === 'ar' ? '❄️ اضغط على أي خصم لتجميده!' : '❄️ Tap an opponent to freeze!')}
+                  {gameState.pendingActionSummary?.type === 'BOMB' && (language === 'ar' ? '💣 اضغط على أي خصم لرمي القنبلة عليه!' : '💣 Tap an opponent to bomb!')}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={handleSkipAction}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all active:scale-95 whitespace-nowrap"
+            >
+              {t('game.action_skip')}
+            </button>
+          </div>
+        )}
+
         {/* Opponents Hands (Perimeter Arc) */}
         <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 mt-1 w-full max-w-4xl">
           {opponents.map(opp => {
             const isTurn = gameState.currentTurnPlayerId === opp.id;
+            const isTargetable = isActionPending && (
+              gameState.pendingActionSummary?.type === 'PEEK_OTHER' ||
+              gameState.pendingActionSummary?.type === 'PEEK_AND_SWAP' ||
+              (gameState.pendingActionSummary?.type === 'SWAP' && selectedOwnCardIdx !== null) ||
+              gameState.pendingActionSummary?.type === 'FREEZE' ||
+              gameState.pendingActionSummary?.type === 'BOMB'
+            );
+
             return (
               <div 
                 key={opp.id}
@@ -224,7 +265,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                   isTurn 
                     ? 'bg-amber-500/25 border-2 border-amber-400 shadow-xl shadow-amber-500/20 scale-105' 
                     : 'bg-black/35 border border-white/10'
-                }`}
+                } ${isTargetable ? 'ring-2 ring-purple-400 ring-offset-2 ring-offset-black/50 cursor-pointer animate-pulse' : ''}`}
               >
                 {/* Opponent Badge */}
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -249,7 +290,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                       labelAr={c.labelAr}
                       labelEn={c.labelEn}
                       color={c.color as any}
-                      isFaceUp={c.isFaceUp}
+                      isFaceUp={c.isFaceUp || isRoundOver}
                       isSelected={selectedTargetPlayerId === opp.id && selectedTargetCardIdx === idx}
                       canInteract={isActionPending}
                       onClick={() => handleOpponentCardClick(opp.id, idx)}
@@ -294,14 +335,14 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           {/* DRAW PILE */}
           <div 
             onClick={() => {
-              if (isMyTurn && !gameState.hasDrawnCard) {
+              if (isMyTurn && !gameState.hasDrawnCard && !isActionPending) {
                 sound.playCardFlip();
                 triggerHaptic('medium');
                 onDrawCard('DRAW_PILE');
               }
             }}
             className={`flex flex-col items-center cursor-pointer transition-all ${
-              isMyTurn && !gameState.hasDrawnCard 
+              isMyTurn && !gameState.hasDrawnCard && !isActionPending
                 ? 'hover:scale-105 active:scale-95 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]' 
                 : 'opacity-90'
             }`}
@@ -327,14 +368,18 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           {/* DISCARD PILE */}
           <div 
             onClick={() => {
-              if (isMyTurn && !gameState.hasDrawnCard && gameState.topDiscard) {
+              if (selectedOwnCardIdx !== null) {
+                handleSlap();
+                return;
+              }
+              if (isMyTurn && !gameState.hasDrawnCard && !isActionPending && gameState.topDiscard) {
                 sound.playCardFlip();
                 triggerHaptic('medium');
                 onDrawCard('DISCARD_PILE');
               }
             }}
             className={`flex flex-col items-center cursor-pointer transition-all ${
-              isMyTurn && !gameState.hasDrawnCard && gameState.topDiscard
+              (isMyTurn && !gameState.hasDrawnCard && !isActionPending && gameState.topDiscard) || selectedOwnCardIdx !== null
                 ? 'hover:scale-105 active:scale-95 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]' 
                 : ''
             }`}
@@ -378,7 +423,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             />
             <div className="flex flex-col gap-2 flex-1">
               <span className="text-xs font-black text-amber-300">
-                {language === 'ar' ? 'اختر كارت من يدك لتبديله:' : 'Tap a hand card to swap:'}
+                {language === 'ar' ? 'اختر كارت من يدك لتبديله، أو ارمه لتفعيل قدرته:' : 'Tap a hand card to swap, or discard to activate power:'}
               </span>
               <button
                 onClick={() => { sound.playCardSlide(); onDiscardCard(true); }}
@@ -392,9 +437,9 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
 
         {/* EPHEMERAL PEEK REVEAL MODAL */}
         {peekReveal && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-amber-400 shadow-2xl">
-              <h3 className="font-black text-lg text-amber-400 flex items-center gap-2">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="glass-panel p-6 max-w-sm w-full flex flex-col items-center text-center gap-4 border-2 border-purple-400 shadow-2xl">
+              <h3 className="font-black text-lg text-purple-300 flex items-center gap-2">
                 <Eye size={22} />
                 <span>{language === 'ar' ? 'كشف الكارت السري' : 'Secret Card Revealed'}</span>
               </h3>
@@ -412,24 +457,36 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                 />
               )}
               {peekReveal.peekData?.requireSwapChoice && (
-                <div className="flex gap-2 w-full mt-2">
-                  <button
-                    onClick={() => {
-                      if (selectedOwnCardIdx !== null) {
-                        onExecuteAction({ chooseSwap: true, ownCardIndex: selectedOwnCardIdx });
-                      }
-                    }}
-                    disabled={selectedOwnCardIdx === null}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-black text-xs disabled:opacity-40 shadow"
-                  >
-                    {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
-                  </button>
-                  <button
-                    onClick={() => onExecuteAction({ chooseSwap: false })}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-700 text-white font-black text-xs shadow"
-                  >
-                    {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
-                  </button>
+                <div className="flex flex-col gap-2 w-full mt-2">
+                  <span className="text-xs font-bold text-amber-200">
+                    {selectedOwnCardIdx !== null 
+                      ? (language === 'ar' ? `كارتك المحدد: #${selectedOwnCardIdx + 1}` : `Selected Card: #${selectedOwnCardIdx + 1}`) 
+                      : (language === 'ar' ? 'اختر كارت من يدك بالأسفل لتبديله معه:' : 'Select one of your hand cards below to swap:')}
+                  </span>
+                  <div className="flex gap-2 w-full mt-1">
+                    <button
+                      onClick={() => {
+                        if (selectedOwnCardIdx !== null) {
+                          onExecuteAction({
+                            chooseSwap: true,
+                            ownCardIndex: selectedOwnCardIdx,
+                            targetPlayerId: selectedTargetPlayerId,
+                            targetCardIndex: selectedTargetCardIdx
+                          });
+                        }
+                      }}
+                      disabled={selectedOwnCardIdx === null}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs disabled:opacity-40 shadow transition-all active:scale-95"
+                    >
+                      {language === 'ar' ? 'تبديل الكارت الآن' : 'Swap Card Now'}
+                    </button>
+                    <button
+                      onClick={() => onExecuteAction({ chooseSwap: false, skip: true })}
+                      className="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-xs shadow transition-all active:scale-95"
+                    >
+                      {language === 'ar' ? 'احتفظ بكروتك' : 'Keep Your Card'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -449,7 +506,9 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             <div className="grid grid-cols-2 gap-2.5 sm:gap-4 p-3 rounded-2xl bg-black/45 border-2 border-emerald-500/30 backdrop-blur-lg shadow-2xl">
               {myPlayer.hand.map((card, idx) => {
                 const isBottomTwoInitial = initialPeekTimer > 0 && (idx === 2 || idx === 3);
-                const isCardFaceUp = card.isFaceUp || isRoundOver || isHoldingPeek || isBottomTwoInitial;
+                const isCardFaceUp = card.isFaceUp || isRoundOver || isBottomTwoInitial;
+                const isTargetableForAction = isActionPending && gameState.pendingActionSummary?.type === 'PEEK_OWN';
+
                 return (
                   <div key={card.id || idx} className="relative">
                     <CardView
@@ -468,7 +527,7 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
                       isBottomTwoInitial 
                         ? 'bg-amber-400 text-black border-amber-300 animate-bounce' 
                         : 'bg-black/80 border-white/20 text-white'
-                    }`}>
+                    } ${isTargetableForAction ? 'ring-2 ring-purple-400' : ''}`}>
                       {idx + 1}
                     </span>
                   </div>
@@ -478,41 +537,32 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
           </div>
         )}
 
-        {/* Tactical Actions (Peek, Slap, Skru!, Chat, Scores) */}
+        {/* Tactical Actions (Slap, Skru!, Chat, Scores) */}
         <div className="flex items-center justify-center gap-2 w-full px-2">
-          {/* Secret Peek Hold Button */}
-          <button
-            onMouseDown={() => setIsHoldingPeek(true)}
-            onMouseUp={() => setIsHoldingPeek(false)}
-            onTouchStart={() => setIsHoldingPeek(true)}
-            onTouchEnd={() => setIsHoldingPeek(false)}
-            className="flex-1 py-3 px-2 rounded-2xl bg-white/10 hover:bg-white/15 text-amber-300 font-extrabold text-xs flex items-center justify-center gap-1.5 border border-white/10 active:scale-95 transition-all select-none shadow"
-            title={t('game.hold_to_peek')}
-          >
-            <Eye size={16} />
-            <span>{t('game.hold_to_peek')}</span>
-          </button>
-
           {/* Match Slap button */}
           <button
             onClick={handleSlap}
-            disabled={selectedOwnCardIdx === null}
+            disabled={selectedOwnCardIdx === null || !gameState.topDiscard}
             className={`flex-1 py-3 px-3 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-lg ${
-              selectedOwnCardIdx !== null 
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white active:scale-95 shadow-blue-900/40 hover:brightness-110 border border-blue-400' 
+              selectedOwnCardIdx !== null && gameState.topDiscard
+                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white active:scale-95 shadow-blue-900/40 hover:brightness-110 border-2 border-blue-300 animate-pulse' 
                 : 'bg-black/30 text-slate-500 border border-white/10 cursor-not-allowed'
             }`}
           >
             <Sparkles size={16} />
-            <span>{t('game.match_slap')}</span>
+            <span>
+              {selectedOwnCardIdx !== null && gameState.topDiscard 
+                ? (language === 'ar' ? `تشابه مع (${gameState.topDiscard.value})` : `Match (${gameState.topDiscard.value})`) 
+                : t('game.match_slap')}
+            </span>
           </button>
 
           {/* Call Skru! Button */}
           <button
             onClick={handleSkru}
-            disabled={!isMyTurn || gameState.hasDrawnCard || gameState.skruCallerId !== null}
+            disabled={!isMyTurn || gameState.hasDrawnCard || gameState.skruCallerId !== null || isActionPending}
             className={`btn-skru flex-1 py-3 px-4 ${
-              (!isMyTurn || gameState.hasDrawnCard || gameState.skruCallerId !== null)
+              (!isMyTurn || gameState.hasDrawnCard || gameState.skruCallerId !== null || isActionPending)
                 ? 'opacity-40 cursor-not-allowed filter grayscale'
                 : ''
             }`}
@@ -542,6 +592,13 @@ export const TabletopView: React.FC<TabletopViewProps> = ({
             )}
           </button>
         </div>
+
+        {/* Match Slap Helper Hint */}
+        <span className="text-[11px] text-slate-400 text-center max-w-xs">
+          {language === 'ar' 
+            ? '💡 للتشابه: اضغط على كارت من يدك أولاً ثم اضغط تشابه أو على كومة الأرض للتخلص منه.' 
+            : '💡 Match Slap: Select your hand card then tap Match Slap or the discard pile!'}
+        </span>
 
         {/* Quick Emoji Reaction Bar */}
         {onSendEmoji && (

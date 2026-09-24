@@ -132,8 +132,8 @@ export const RulesEncyclopedia: React.FC = () => {
       </div>
 
       {/* Golden Rules Callout */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-panel p-4 flex flex-col gap-1.5 border-emerald-500/30">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="glass-panel p-3.5 flex flex-col gap-1.5 border-emerald-500/30">
           <span className="font-extrabold text-xs text-emerald-400 flex items-center gap-1.5">
             <Award size={16} />
             <span>{language === 'ar' ? 'هدف اللعبة الأساسي' : 'Core Objective'}</span>
@@ -143,7 +143,7 @@ export const RulesEncyclopedia: React.FC = () => {
           </p>
         </div>
 
-        <div className="glass-panel p-4 flex flex-col gap-1.5 border-amber-500/30">
+        <div className="glass-panel p-3.5 flex flex-col gap-1.5 border-amber-500/30">
           <span className="font-extrabold text-xs text-amber-400 flex items-center gap-1.5">
             <Sparkles size={16} />
             <span>{language === 'ar' ? 'حفظ الكروت المبدئي' : 'Initial Peek'}</span>
@@ -153,7 +153,19 @@ export const RulesEncyclopedia: React.FC = () => {
           </p>
         </div>
 
-        <div className="glass-panel p-4 flex flex-col gap-1.5 border-red-500/30">
+        <div className="glass-panel p-3.5 flex flex-col gap-1.5 border-blue-500/30">
+          <span className="font-extrabold text-xs text-blue-400 flex items-center gap-1.5">
+            <Sparkles size={16} />
+            <span>{language === 'ar' ? 'قانون التشابه (Match Slap)' : 'Match Slap Rule'}</span>
+          </span>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            {language === 'ar' 
+              ? 'إذا كان في يدك كارت يطابق كارت الأرض، اختره واضغط تشابه للتخلص منه فوراً! التشابه الخاطئ يعاقبك بكارت إضافي!' 
+              : 'If you have a card matching the discard pile, select it and slap to drop it! A wrong slap adds a penalty card!'}
+          </p>
+        </div>
+
+        <div className="glass-panel p-3.5 flex flex-col gap-1.5 border-red-500/30">
           <span className="font-extrabold text-xs text-red-400 flex items-center gap-1.5">
             <Flame size={16} />
             <span>{language === 'ar' ? 'عقوبة سكرو الذهبية' : 'Skru Penalty Math'}</span>

@@ -1,4 +1,4 @@
-import { Card, GameVariant, Player } from '../types';
+import { Card, CardAction, GameVariant, Player } from '../types';
 
 export interface LocalPlayer extends Player {
   isAi: boolean;
@@ -96,6 +96,15 @@ export function createLocalDeck(variant: GameVariant): Card[] {
   return cards;
 }
 
+export interface PendingAction {
+  type: CardAction;
+  playerIndex: number;
+  stage?: 'SELECT_TARGET' | 'CHOOSE_SWAP';
+  targetPlayerIndex?: number;
+  targetCardIndex?: number;
+  revealedCard?: Card;
+}
+
 export class LocalGameSession {
   public players: LocalPlayer[];
   public drawPile: Card[] = [];
@@ -111,6 +120,7 @@ export class LocalGameSession {
   public logs: { ar: string; en: string }[] = [];
   public variant: GameVariant;
   public pointsCap: number;
+  public pendingAction: PendingAction | null = null;
   public onStateChange?: () => void;
 
   constructor(playerConfigs: Array<{ name: string; avatar: string; isAi: boolean }>, variant: GameVariant = 'CLASSIC', pointsCap: number = 100) {
@@ -142,6 +152,7 @@ export class LocalGameSession {
     this.finalTurnsRemaining = 0;
     this.drawnCard = null;
     this.drawnFrom = null;
+    this.pendingAction = null;
 
     // Deal 4 cards to each
     for (const player of this.players) {
@@ -169,7 +180,7 @@ export class LocalGameSession {
   }
 
   public draw(from: 'DRAW_PILE' | 'DISCARD_PILE'): Card | null {
-    if (this.drawnCard) return null;
+    if (this.drawnCard || this.pendingAction) return null;
     if (from === 'DISCARD_PILE') {
       if (this.discardPile.length === 0) return null;
       this.drawnCard = this.discardPile.pop()!;
@@ -191,7 +202,7 @@ export class LocalGameSession {
   }
 
   public swap(handIndex: number): void {
-    if (!this.drawnCard) return;
+    if (!this.drawnCard || this.pendingAction) return;
     const player = this.players[this.currentTurnIndex];
     const old = player.hand[handIndex];
     old.isFaceUp = true;
@@ -206,17 +217,261 @@ export class LocalGameSession {
   }
 
   public discard(): void {
-    if (!this.drawnCard || this.drawnFrom === 'DISCARD_PILE') return;
+    if (!this.drawnCard || this.drawnFrom === 'DISCARD_PILE' || this.pendingAction) return;
     const card = this.drawnCard;
     card.isFaceUp = true;
     this.discardPile.push(card);
     this.drawnCard = null;
     this.drawnFrom = null;
+
+    // Check if discarded card has a special action
+    if (card.action && card.action !== 'NONE') {
+      const player = this.players[this.currentTurnIndex];
+      if (!player.isAi) {
+        // Human player: activate interactive pending action
+        this.pendingAction = {
+          type: card.action,
+          playerIndex: this.currentTurnIndex,
+          stage: 'SELECT_TARGET'
+        };
+        this.addLog(`تم تفعيل قدرة (${card.labelAr})! اضغط على الكارت المطلوب لتنفيذ الحركة.`, `Special action (${card.labelEn}) activated! Tap target card.`);
+        if (this.onStateChange) this.onStateChange();
+        return;
+      } else {
+        // AI player: execute action immediately
+        this.executeAiAction(card.action);
+        return;
+      }
+    }
+
+    this.advanceTurn();
+  }
+
+  public executeAction(payload: {
+    ownCardIndex?: number;
+    targetPlayerIndex?: number;
+    targetCardIndex?: number;
+    chooseSwap?: boolean;
+    myCardIndex?: number;
+  }): { success: boolean; revealedCard?: Card; message?: string } {
+    if (!this.pendingAction) return { success: false, message: 'No pending action' };
+
+    const actionType = this.pendingAction.type;
+    const player = this.players[this.pendingAction.playerIndex];
+
+    switch (actionType) {
+      case 'PEEK_OWN': {
+        if (payload.ownCardIndex !== undefined && player.hand[payload.ownCardIndex]) {
+          const card = player.hand[payload.ownCardIndex];
+          player.knownCards[payload.ownCardIndex] = card.value;
+          this.addLog(`كشف ${player.name} كارت من كروته الخاصة.`, `${player.name} peeked at their own card.`);
+          this.pendingAction = null;
+          this.advanceTurn();
+          return { success: true, revealedCard: card };
+        }
+        break;
+      }
+
+      case 'PEEK_OTHER': {
+        const targetIdx = payload.targetPlayerIndex ?? 1;
+        const targetPlayer = this.players[targetIdx];
+        if (targetPlayer && payload.targetCardIndex !== undefined && targetPlayer.hand[payload.targetCardIndex]) {
+          const card = targetPlayer.hand[payload.targetCardIndex];
+          this.addLog(`كشف ${player.name} كارت من أوراق ${targetPlayer.name} (بصرة).`, `${player.name} peeked at a card from ${targetPlayer.name}.`);
+          this.pendingAction = null;
+          this.advanceTurn();
+          return { success: true, revealedCard: card };
+        }
+        break;
+      }
+
+      case 'SWAP': {
+        const targetIdx = payload.targetPlayerIndex ?? 1;
+        const targetPlayer = this.players[targetIdx];
+        if (
+          targetPlayer &&
+          payload.myCardIndex !== undefined &&
+          payload.targetCardIndex !== undefined &&
+          player.hand[payload.myCardIndex] &&
+          targetPlayer.hand[payload.targetCardIndex]
+        ) {
+          const myCard = player.hand[payload.myCardIndex];
+          const oppCard = targetPlayer.hand[payload.targetCardIndex];
+
+          player.hand[payload.myCardIndex] = oppCard;
+          targetPlayer.hand[payload.targetCardIndex] = myCard;
+
+          player.knownCards[payload.myCardIndex] = null;
+          targetPlayer.knownCards[payload.targetCardIndex] = null;
+
+          this.addLog(`بدّل ${player.name} كارت مع ${targetPlayer.name} (هات وخد).`, `${player.name} swapped a card with ${targetPlayer.name}.`);
+          this.pendingAction = null;
+          this.advanceTurn();
+          return { success: true };
+        }
+        break;
+      }
+
+      case 'PEEK_AND_SWAP': {
+        const targetIdx = payload.targetPlayerIndex ?? 1;
+        const targetPlayer = this.players[targetIdx];
+        if (this.pendingAction.stage === 'SELECT_TARGET') {
+          if (targetPlayer && payload.targetCardIndex !== undefined && targetPlayer.hand[payload.targetCardIndex]) {
+            const card = targetPlayer.hand[payload.targetCardIndex];
+            this.pendingAction.stage = 'CHOOSE_SWAP';
+            this.pendingAction.targetPlayerIndex = targetIdx;
+            this.pendingAction.targetCardIndex = payload.targetCardIndex;
+            this.pendingAction.revealedCard = card;
+            if (this.onStateChange) this.onStateChange();
+            return { success: true, revealedCard: card };
+          }
+        } else if (this.pendingAction.stage === 'CHOOSE_SWAP') {
+          if (payload.chooseSwap && payload.myCardIndex !== undefined && this.pendingAction.targetCardIndex !== undefined) {
+            const myCard = player.hand[payload.myCardIndex];
+            const oppCard = targetPlayer.hand[this.pendingAction.targetCardIndex];
+
+            player.hand[payload.myCardIndex] = oppCard;
+            targetPlayer.hand[this.pendingAction.targetCardIndex] = myCard;
+
+            player.knownCards[payload.myCardIndex] = oppCard.value;
+            targetPlayer.knownCards[this.pendingAction.targetCardIndex] = null;
+
+            this.addLog(`اختار ${player.name} تبديل الكارت بعد رؤيته مع ${targetPlayer.name}!`, `${player.name} swapped after peeking with ${targetPlayer.name}!`);
+          } else {
+            this.addLog(`قرر ${player.name} عدم تبديل الكارت والاحتفاظ بكروته.`, `${player.name} decided not to swap.`);
+          }
+          this.pendingAction = null;
+          this.advanceTurn();
+          return { success: true };
+        }
+        break;
+      }
+
+      case 'FREEZE': {
+        const targetIdx = payload.targetPlayerIndex ?? 1;
+        const targetPlayer = this.players[targetIdx];
+        if (targetPlayer) {
+          targetPlayer.isFrozen = true;
+          this.addLog(`تم تجميد دور ${targetPlayer.name} ❄️!`, `${targetPlayer.name} has been frozen ❄️!`);
+          this.pendingAction = null;
+          this.advanceTurn();
+          return { success: true };
+        }
+        break;
+      }
+
+      case 'BOMB': {
+        const targetIdx = payload.targetPlayerIndex ?? 1;
+        const targetPlayer = this.players[targetIdx];
+        if (targetPlayer) {
+          if (this.drawPile.length > 0) {
+            const penalty = this.drawPile.pop()!;
+            penalty.isFaceUp = false;
+            targetPlayer.hand.push(penalty);
+            targetPlayer.knownCards.push(null);
+          }
+          this.addLog(`انفجرت القنبلة 💣 في ${targetPlayer.name} وأخذ كارت غرامة!`, `Bomb exploded on ${targetPlayer.name}!`);
+          this.pendingAction = null;
+          this.advanceTurn();
+          return { success: true };
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+
+    return { success: false, message: 'Invalid action execution' };
+  }
+
+  public skipAction(): void {
+    if (!this.pendingAction) return;
+    this.addLog(`تم تخطي قدرة الكارت.`, `Action skipped.`);
+    this.pendingAction = null;
+    this.advanceTurn();
+  }
+
+  private executeAiAction(action: CardAction): void {
+    const bot = this.players[this.currentTurnIndex];
+    if (action === 'PEEK_OWN') {
+      // Find unknown card in bot's hand
+      let unkIdx = bot.knownCards.findIndex(v => v === null);
+      if (unkIdx === -1) unkIdx = 0;
+      if (bot.hand[unkIdx]) {
+        bot.knownCards[unkIdx] = bot.hand[unkIdx].value;
+        this.addLog(`كشف ${bot.name} أحد كروته سراً.`, `${bot.name} peeked at their own card.`);
+      }
+    } else if (action === 'PEEK_OTHER') {
+      const opp = this.players.find((p, idx) => idx !== this.currentTurnIndex && p.hand.length > 0);
+      if (opp) {
+        this.addLog(`كشف ${bot.name} كارت من أوراق ${opp.name} (بصرة).`, `${bot.name} peeked at ${opp.name}'s card.`);
+      }
+    } else if (action === 'SWAP') {
+      // Bot swaps highest known card (> 6) with human player (index 0)
+      let maxIdx = 0;
+      let maxVal = -99;
+      bot.knownCards.forEach((v, idx) => {
+        const val = v ?? 6;
+        if (val > maxVal) {
+          maxVal = val;
+          maxIdx = idx;
+        }
+      });
+      const targetOpp = this.players[0];
+      if (targetOpp && targetOpp.hand.length > 0 && bot.hand[maxIdx]) {
+        const oppCardIdx = Math.floor(Math.random() * targetOpp.hand.length);
+        const myCard = bot.hand[maxIdx];
+        const oppCard = targetOpp.hand[oppCardIdx];
+        bot.hand[maxIdx] = oppCard;
+        targetOpp.hand[oppCardIdx] = myCard;
+        bot.knownCards[maxIdx] = null;
+        targetOpp.knownCards[oppCardIdx] = null;
+        this.addLog(`بدّل ${bot.name} كارت مع ${targetOpp.name} (هات وخد)!`, `${bot.name} swapped a card with ${targetOpp.name}!`);
+      }
+    } else if (action === 'PEEK_AND_SWAP') {
+      const targetOpp = this.players[0];
+      if (targetOpp && targetOpp.hand.length > 0) {
+        const oppCardIdx = Math.floor(Math.random() * targetOpp.hand.length);
+        const oppCard = targetOpp.hand[oppCardIdx];
+        if (oppCard.value <= 4) {
+          let maxIdx = 0;
+          let maxVal = -99;
+          bot.knownCards.forEach((v, idx) => {
+            const val = v ?? 6;
+            if (val > maxVal) {
+              maxVal = val;
+              maxIdx = idx;
+            }
+          });
+          const myCard = bot.hand[maxIdx];
+          bot.hand[maxIdx] = oppCard;
+          targetOpp.hand[oppCardIdx] = myCard;
+          bot.knownCards[maxIdx] = oppCard.value;
+          targetOpp.knownCards[oppCardIdx] = null;
+          this.addLog(`كشف ${bot.name} كارت ${targetOpp.name} وبدله بنجاح!`, `${bot.name} peeked & swapped with ${targetOpp.name}!`);
+        } else {
+          this.addLog(`كشف ${bot.name} كارت ${targetOpp.name} واحتفظ بكروته.`, `${bot.name} peeked and chose not to swap.`);
+        }
+      }
+    } else if (action === 'FREEZE') {
+      this.players[0].isFrozen = true;
+      this.addLog(`جمّد ${bot.name} دور ${this.players[0].name} ❄️!`, `${bot.name} froze ${this.players[0].name}!`);
+    } else if (action === 'BOMB') {
+      if (this.drawPile.length > 0) {
+        const penalty = this.drawPile.pop()!;
+        penalty.isFaceUp = false;
+        this.players[0].hand.push(penalty);
+        this.players[0].knownCards.push(null);
+      }
+      this.addLog(`ألقى ${bot.name} قنبلة 💣 على ${this.players[0].name}!`, `${bot.name} bombed ${this.players[0].name}!`);
+    }
+
     this.advanceTurn();
   }
 
   public callSkru(): boolean {
-    if (this.skruCallerIndex !== null || this.drawnCard !== null) return false;
+    if (this.skruCallerIndex !== null || this.drawnCard !== null || this.pendingAction) return false;
     this.skruCallerIndex = this.currentTurnIndex;
     this.players[this.currentTurnIndex].hasCalledSkru = true;
     this.finalTurnsRemaining = this.players.length - 1;
@@ -227,9 +482,11 @@ export class LocalGameSession {
     return true;
   }
 
-  public matchSlap(playerIndex: number, handIndex: number): { isMatch: boolean; message: string } {
+  public matchSlap(playerIndex: number, handIndex: number): { isMatch: boolean; message: string; cardValue?: number; topValue?: number } {
     if (this.discardPile.length === 0) return { isMatch: false, message: 'Empty discard pile' };
     const player = this.players[playerIndex];
+    if (!player || !player.hand[handIndex]) return { isMatch: false, message: 'Invalid card index' };
+
     const top = this.discardPile[this.discardPile.length - 1];
     const card = player.hand[handIndex];
 
@@ -238,8 +495,9 @@ export class LocalGameSession {
       player.knownCards.splice(handIndex, 1);
       card.isFaceUp = true;
       this.discardPile.push(card);
-      this.addLog(`تشابه صحيح بواسطة ${player.name}! تخلص من كارت!`, `Correct match by ${player.name}!`);
-      return { isMatch: true, message: 'Match drop success!' };
+      this.addLog(`🎉 تشابه صحيح بواسطة ${player.name} (قيمة ${card.value})! تخلص من كارت!`, `🎉 Correct match by ${player.name} (${card.value})!`);
+      if (this.onStateChange) this.onStateChange();
+      return { isMatch: true, message: 'Match drop success!', cardValue: card.value, topValue: top.value };
     } else {
       if (this.drawPile.length > 0) {
         const penalty = this.drawPile.pop()!;
@@ -247,8 +505,9 @@ export class LocalGameSession {
         player.hand.push(penalty);
         player.knownCards.push(null);
       }
-      this.addLog(`تشابه خاطئ! تم معاقبة ${player.name} بكارت إضافي!`, `Wrong match by ${player.name}!`);
-      return { isMatch: false, message: 'Wrong match penalty!' };
+      this.addLog(`⚠️ تشابه خاطئ! كارت ${player.name} (${card.value}) لا يطابق الأرض (${top.value}) — كارت غرامة!`, `⚠️ Wrong match by ${player.name}! Card (${card.value}) vs (${top.value})`);
+      if (this.onStateChange) this.onStateChange();
+      return { isMatch: false, message: 'Wrong match penalty!', cardValue: card.value, topValue: top.value };
     }
   }
 
@@ -263,6 +522,16 @@ export class LocalGameSession {
 
     this.currentTurnIndex = (this.currentTurnIndex + 1) % this.players.length;
 
+    // Skip frozen player
+    if (this.players[this.currentTurnIndex].isFrozen) {
+      this.players[this.currentTurnIndex].isFrozen = false;
+      this.addLog(`تم فك تجميد ${this.players[this.currentTurnIndex].name} وتخطي دوره.`, `${this.players[this.currentTurnIndex].name} skipped frozen turn.`);
+      this.advanceTurn();
+      return;
+    }
+
+    if (this.onStateChange) this.onStateChange();
+
     // If current player is AI, trigger auto play
     if (this.players[this.currentTurnIndex].isAi && !this.isRoundOver) {
       setTimeout(() => this.runAiTurn(), 700);
@@ -270,20 +539,19 @@ export class LocalGameSession {
   }
 
   private runAiTurn(): void {
-    if (this.isRoundOver) return;
+    if (this.isRoundOver || this.pendingAction) return;
     const bot = this.players[this.currentTurnIndex];
     const topDiscard = this.discardPile[this.discardPile.length - 1];
 
     // 1. Should bot call Skru?
     const knownSum = bot.knownCards.reduce((acc: number, v: number | null) => acc + (v ?? 6), 0);
-    if (this.skruCallerIndex === null && knownSum <= 6 && Math.random() > 0.3) {
+    if (this.skruCallerIndex === null && knownSum <= 5 && Math.random() > 0.3) {
       this.callSkru();
       return;
     }
 
     // 2. Take discard pile if valuable (e.g. <= 3)
     if (topDiscard && topDiscard.value <= 3) {
-      // Find highest known card to swap
       let maxIdx = 0;
       let maxVal = -99;
       bot.knownCards.forEach((v, idx) => {
@@ -309,7 +577,6 @@ export class LocalGameSession {
     }
 
     setTimeout(() => {
-      // If drawn is low, swap with highest known card
       let maxIdx = 0;
       let maxVal = -99;
       bot.knownCards.forEach((v, idx) => {
@@ -323,7 +590,6 @@ export class LocalGameSession {
       if (drawn.value <= 5 && drawn.value < maxVal) {
         this.swap(maxIdx);
       } else {
-        // Discard
         this.discard();
       }
     }, 450);
@@ -360,11 +626,12 @@ export class LocalGameSession {
     if (maxScore >= this.pointsCap) {
       this.isGameOver = true;
     }
+
+    if (this.onStateChange) this.onStateChange();
   }
 
   private addLog(ar: string, en: string) {
     this.logs.push({ ar, en });
     if (this.logs.length > 20) this.logs.shift();
-    if (this.onStateChange) this.onStateChange();
   }
 }
